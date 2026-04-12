@@ -1,2 +1,5 @@
+from .cli import app
+
+
 def main() -> None:
-    print("Hello from cdcasasagi!")
+    app()
