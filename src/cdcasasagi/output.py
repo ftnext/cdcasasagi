@@ -72,5 +72,5 @@ def write_message(
         lines.append(f"Backup: {backup}")
     lines.append(f"Wrote:  {config_path}")
     lines.append("")
-    lines.append(f'\u2713 Added "{name}". Restart Claude Desktop to take effect.')
+    lines.append(f'Added "{name}". Restart Claude Desktop to take effect.')
     return "\n".join(lines)
