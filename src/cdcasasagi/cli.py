@@ -26,13 +26,13 @@ def _validate_url(url: str) -> None:
 
 @app.command()
 def add(
-    url: str = typer.Argument(..., help="MCP サーバの URL"),
-    name: str | None = typer.Option(None, help="mcpServers のキー名"),
+    url: str = typer.Argument(..., help="URL of the MCP server"),
+    name: str | None = typer.Option(None, help="Key name for mcpServers"),
     transport: str = typer.Option(
-        "streamablehttp", help="mcp-proxy に渡すトランスポート種別"
+        "streamablehttp", help="Transport type passed to mcp-proxy"
     ),
-    force: bool = typer.Option(False, help="既存エントリを上書き"),
-    write: bool = typer.Option(False, help="実際にファイルへ書き込む"),
+    force: bool = typer.Option(False, help="Overwrite existing entry"),
+    write: bool = typer.Option(False, help="Actually write to the file"),
 ) -> None:
     _validate_url(url)
 
