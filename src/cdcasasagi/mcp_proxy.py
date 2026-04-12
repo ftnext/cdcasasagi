@@ -16,7 +16,7 @@ def resolve_path() -> Path:
     if candidate.exists() and candidate.is_file():
         return candidate
     raise McpProxyNotFoundError(
-        "mcp-proxy が見つかりません。"
-        "このツールは uv tool install cdcasasagi 経由でインストールしてください。"
-        "uvx での一時実行では設定ファイルに書き込んだパスが永続化されません。"
+        "mcp-proxy not found. "
+        "Please install this tool via 'uv tool install cdcasasagi'. "
+        "Temporary execution with uvx will not persist the path written to the config file."
     )

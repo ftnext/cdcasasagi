@@ -14,17 +14,17 @@ class NameDerivationError(Exception):
 def derive_server_name(url: str) -> str:
     hostname = urlparse(url).hostname
     if hostname is None:
-        raise NameDerivationError("URL の形式が不正です")
+        raise NameDerivationError("Invalid URL format")
 
     if hostname == "localhost" or _is_ip(hostname):
         raise NameDerivationError(
-            "ホスト名から名前を導出できません。--name を明示してください"
+            "Cannot derive a name from the hostname. Please specify --name explicitly"
         )
 
     labels = hostname.split(".")
     if len(labels) < 2:
         raise NameDerivationError(
-            "ホスト名から名前を導出できません。--name を明示してください"
+            "Cannot derive a name from the hostname. Please specify --name explicitly"
         )
 
     sld = labels[-2]
@@ -43,7 +43,7 @@ def derive_server_name(url: str) -> str:
 
     if not candidate or len(candidate) == 1 or candidate.isdigit():
         raise NameDerivationError(
-            "ホスト名から名前を導出できません。--name を明示してください"
+            "Cannot derive a name from the hostname. Please specify --name explicitly"
         )
 
     return candidate

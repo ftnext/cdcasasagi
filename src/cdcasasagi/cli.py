@@ -17,10 +17,10 @@ def _callback() -> None:
 def _validate_url(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
-        typer.echo("有効な HTTP(S) URL を指定してください", err=True)
+        typer.echo("Please specify a valid HTTP(S) URL", err=True)
         raise typer.Exit(code=1)
     if not parsed.hostname:
-        typer.echo("URL の形式が不正です", err=True)
+        typer.echo("Invalid URL format", err=True)
         raise typer.Exit(code=1)
 
 

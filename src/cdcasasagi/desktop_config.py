@@ -41,8 +41,7 @@ def load_config(path: Path) -> dict[str, Any]:
         return json.loads(text)
     except (json.JSONDecodeError, ValueError) as e:
         raise ConfigError(
-            f"設定ファイルの JSON パースに失敗しました: {path}\n"
-            f"ファイルを確認してください: {e}"
+            f"Failed to parse JSON config file: {path}\nPlease check the file: {e}"
         ) from e
 
 
@@ -64,7 +63,7 @@ def merge_entry(
         config["mcpServers"] = {}
 
     if name in config["mcpServers"] and not force:
-        raise EntryExistsError(f'既に "{name}" が存在します。--force で上書きできます')
+        raise EntryExistsError(f'"{name}" already exists. Use --force to overwrite')
 
     config["mcpServers"][name] = entry
     return config
