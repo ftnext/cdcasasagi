@@ -4,12 +4,17 @@ from pathlib import Path
 import pytest
 
 from cdcasasagi.desktop_config import (
+    BackupError,
+    BackupNotFoundError,
     ConfigError,
     EntryExistsError,
+    backup_path,
     build_entry,
     config_path,
+    load_backup,
     load_config,
     merge_entry,
+    revert_config,
     write_config,
 )
 
@@ -37,6 +42,15 @@ class TestConfigPath:
         monkeypatch.setenv("APPDATA", "/fake/appdata")
         result = config_path()
         assert result == Path("/fake/appdata/Claude/claude_desktop_config.json")
+
+
+class TestBackupPath:
+    def test_basic(self):
+        assert backup_path(Path("/tmp/config.json")) == Path("/tmp/config.json.bak")
+
+    def test_preserves_directory(self):
+        p = Path("/home/user/.config/claude_desktop_config.json")
+        assert backup_path(p).parent == p.parent
 
 
 class TestLoadConfig:
@@ -134,4 +148,57 @@ class TestWriteConfig:
     def test_trailing_newline(self, tmp_path):
         p = tmp_path / "config.json"
         write_config(p, {"mcpServers": {}})
+        assert p.read_text().endswith("\n")
+
+
+class TestLoadBackup:
+    def test_backup_not_found(self, tmp_path):
+        p = tmp_path / "config.json"
+        with pytest.raises(BackupNotFoundError):
+            load_backup(p)
+
+    def test_valid_backup(self, tmp_path):
+        p = tmp_path / "config.json"
+        bak = tmp_path / "config.json.bak"
+        bak.write_text('{"mcpServers": {}}')
+        assert load_backup(p) == {"mcpServers": {}}
+
+    def test_corrupted_backup(self, tmp_path):
+        p = tmp_path / "config.json"
+        bak = tmp_path / "config.json.bak"
+        bak.write_text("not json")
+        with pytest.raises(BackupError):
+            load_backup(p)
+
+
+class TestRevertConfig:
+    def test_reverts_content(self, tmp_path):
+        p = tmp_path / "config.json"
+        p.write_text(json.dumps({"mcpServers": {"new": {}}}))
+        bak = tmp_path / "config.json.bak"
+        bak.write_text(json.dumps({"mcpServers": {}}))
+        revert_config(p, {"mcpServers": {}})
+        assert json.loads(p.read_text()) == {"mcpServers": {}}
+
+    def test_deletes_backup(self, tmp_path):
+        p = tmp_path / "config.json"
+        p.write_text(json.dumps({"mcpServers": {"new": {}}}))
+        bak = tmp_path / "config.json.bak"
+        bak.write_text(json.dumps({"mcpServers": {}}))
+        revert_config(p, {"mcpServers": {}})
+        assert not bak.exists()
+
+    def test_creates_file_if_not_exists(self, tmp_path):
+        p = tmp_path / "config.json"
+        bak = tmp_path / "config.json.bak"
+        bak.write_text(json.dumps({"mcpServers": {}}))
+        revert_config(p, {"mcpServers": {}})
+        assert p.exists()
+        assert not bak.exists()
+
+    def test_trailing_newline(self, tmp_path):
+        p = tmp_path / "config.json"
+        bak = tmp_path / "config.json.bak"
+        bak.write_text(json.dumps({"mcpServers": {}}))
+        revert_config(p, {"mcpServers": {}})
         assert p.read_text().endswith("\n")

@@ -77,3 +77,33 @@ def add(
         desktop_config.write_config(cfg_path, merged)
         msg = output.write_message(name, name_was_derived, cfg_path, file_existed)
         typer.echo(msg)
+
+
+@app.command()
+def revert() -> None:
+    cfg_path = desktop_config.config_path()
+
+    try:
+        backup_config = desktop_config.load_backup(cfg_path)
+    except desktop_config.BackupNotFoundError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
+    except desktop_config.BackupError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        current_config = desktop_config.load_config(cfg_path)
+    except desktop_config.ConfigError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
+
+    file_existed = cfg_path.exists()
+    before = None if not file_existed else current_config
+
+    diff_text = output.format_diff(
+        before, backup_config, from_label="before", to_label="after"
+    )
+    desktop_config.revert_config(cfg_path, backup_config)
+    msg = output.revert_message(cfg_path, diff_text)
+    typer.echo(msg)

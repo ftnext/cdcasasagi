@@ -10,10 +10,13 @@ from . import desktop_config
 def format_diff(
     current_config: dict[str, Any] | None,
     proposed_config: dict[str, Any],
+    *,
+    from_label: str = "current",
+    to_label: str = "proposed",
 ) -> str:
     if current_config is None:
         current_lines: list[str] = []
-        header = "--- (file does not exist; will be created)\n+++ proposed\n"
+        header = f"--- (file does not exist; will be created)\n+++ {to_label}\n"
     else:
         current_text = desktop_config.serialize_config(current_config)
         current_lines = current_text.splitlines(keepends=True)
@@ -25,8 +28,8 @@ def format_diff(
     diff = difflib.unified_diff(
         current_lines,
         proposed_lines,
-        fromfile="current",
-        tofile="proposed",
+        fromfile=from_label,
+        tofile=to_label,
     )
     if header:
         diff_lines = list(diff)
@@ -55,6 +58,22 @@ def preview_message(
     lines.append("")
     lines.append("This is a preview. Re-run with --write to apply.")
     lines.append("To use a different name: --name <your-name>")
+    return "\n".join(lines)
+
+
+def revert_message(
+    config_path: Path,
+    diff_text: str,
+) -> str:
+    lines: list[str] = []
+    lines.append(f"Reverted: {config_path}")
+    backup = config_path.with_suffix(config_path.suffix + ".bak")
+    lines.append(f"Removed:  {backup}")
+    if diff_text.strip():
+        lines.append("")
+        lines.append(diff_text.rstrip())
+    lines.append("")
+    lines.append("Reverted to backup. Restart Claude Desktop to take effect.")
     return "\n".join(lines)
 
 
