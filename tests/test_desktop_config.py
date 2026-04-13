@@ -170,6 +170,13 @@ class TestLoadBackup:
         with pytest.raises(BackupError):
             load_backup(p)
 
+    def test_unreadable_backup(self, tmp_path):
+        p = tmp_path / "config.json"
+        bak = tmp_path / "config.json.bak"
+        bak.mkdir()  # directory, not a file
+        with pytest.raises(BackupError, match="Cannot read"):
+            load_backup(p)
+
 
 class TestRevertConfig:
     def test_reverts_content(self, tmp_path):

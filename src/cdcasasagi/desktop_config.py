@@ -68,6 +68,10 @@ def load_backup(path: Path) -> dict[str, Any]:
         raise BackupError(
             f"Backup file is corrupted: {bak}\nPlease check the file: {e}"
         ) from e
+    except OSError as e:
+        raise BackupError(
+            f"Cannot read backup file: {bak}\nPlease check the file: {e}"
+        ) from e
 
 
 def build_entry(mcp_proxy_path: Path, transport: str, url: str) -> dict[str, Any]:
