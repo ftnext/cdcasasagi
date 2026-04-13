@@ -152,6 +152,17 @@ class TestRevert:
         assert result.exit_code == 1
         assert "corrupted" in result.output
 
+    def test_revert_with_corrupted_config(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text("not json")
+        bak = config_file.with_suffix(".json.bak")
+        bak.write_text(json.dumps({"mcpServers": {}}))
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert data == {"mcpServers": {}}
+        assert not bak.exists()
+
     def test_revert_removes_backup_file(self, config_env):
         config_file, _ = config_env
         original = {"mcpServers": {"old": {"command": "x"}}}

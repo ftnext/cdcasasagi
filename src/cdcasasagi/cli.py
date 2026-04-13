@@ -94,12 +94,9 @@ def revert() -> None:
 
     try:
         current_config = desktop_config.load_config(cfg_path)
-    except desktop_config.ConfigError as e:
-        typer.echo(str(e), err=True)
-        raise typer.Exit(code=1)
-
-    file_existed = cfg_path.exists()
-    before = None if not file_existed else current_config
+        before = current_config if cfg_path.exists() else None
+    except desktop_config.ConfigError:
+        before = None
 
     diff_text = output.format_diff(
         before, backup_config, from_label="before", to_label="after"
