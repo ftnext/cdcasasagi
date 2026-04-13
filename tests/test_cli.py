@@ -114,3 +114,62 @@ class TestAddErrors:
         result = runner.invoke(app, ["add", "https://localhost/mcp"])
         assert result.exit_code == 1
         assert "--name" in result.output
+
+
+class TestRevert:
+    def test_revert_after_add(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text(json.dumps({"mcpServers": {}}))
+        runner.invoke(app, ["add", "https://mcp.notion.com/mcp", "--write"])
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert "notion" not in data["mcpServers"]
+        assert not config_file.with_suffix(".json.bak").exists()
+        assert "Reverted" in result.output
+        assert "Restart Claude Desktop" in result.output
+
+    def test_revert_shows_diff(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text(json.dumps({"mcpServers": {}}))
+        runner.invoke(app, ["add", "https://mcp.notion.com/mcp", "--write"])
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 0
+        assert "--- before" in result.output
+        assert "+++ after" in result.output
+
+    def test_revert_no_backup(self, config_env):
+        config_file, _ = config_env
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 1
+        assert "Backup not found" in result.output
+
+    def test_revert_corrupted_backup(self, config_env):
+        config_file, _ = config_env
+        bak = config_file.with_suffix(".json.bak")
+        bak.write_text("not json")
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 1
+        assert "corrupted" in result.output
+
+    def test_revert_with_corrupted_config(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text("not json")
+        bak = config_file.with_suffix(".json.bak")
+        bak.write_text(json.dumps({"mcpServers": {}}))
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert data == {"mcpServers": {}}
+        assert not bak.exists()
+
+    def test_revert_removes_backup_file(self, config_env):
+        config_file, _ = config_env
+        original = {"mcpServers": {"old": {"command": "x"}}}
+        config_file.write_text(json.dumps({"mcpServers": {"old": {"command": "x"}, "notion": {}}}))
+        bak = config_file.with_suffix(".json.bak")
+        bak.write_text(json.dumps(original))
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 0
+        assert not bak.exists()
+        assert "Removed:" in result.output

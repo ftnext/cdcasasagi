@@ -17,6 +17,14 @@ class EntryExistsError(Exception):
     pass
 
 
+class BackupNotFoundError(Exception):
+    pass
+
+
+class BackupError(Exception):
+    pass
+
+
 def config_path() -> Path:
     env = os.environ.get("CLAUDE_DESKTOP_CONFIG")
     if env:
@@ -33,6 +41,10 @@ def config_path() -> Path:
     )
 
 
+def backup_path(path: Path) -> Path:
+    return path.with_suffix(path.suffix + ".bak")
+
+
 def load_config(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {"mcpServers": {}}
@@ -42,6 +54,23 @@ def load_config(path: Path) -> dict[str, Any]:
     except (json.JSONDecodeError, ValueError) as e:
         raise ConfigError(
             f"Failed to parse JSON config file: {path}\nPlease check the file: {e}"
+        ) from e
+
+
+def load_backup(path: Path) -> dict[str, Any]:
+    bak = backup_path(path)
+    if not bak.exists():
+        raise BackupNotFoundError(f"Backup not found: {bak}")
+    try:
+        text = bak.read_text(encoding="utf-8")
+        return json.loads(text)
+    except (json.JSONDecodeError, ValueError) as e:
+        raise BackupError(
+            f"Backup file is corrupted: {bak}\nPlease check the file: {e}"
+        ) from e
+    except OSError as e:
+        raise BackupError(
+            f"Cannot read backup file: {bak}\nPlease check the file: {e}"
         ) from e
 
 
@@ -73,14 +102,8 @@ def serialize_config(config: dict[str, Any]) -> str:
     return json.dumps(config, indent=2, ensure_ascii=False) + "\n"
 
 
-def write_config(path: Path, config: dict[str, Any]) -> None:
+def _atomic_write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    if path.exists():
-        backup = path.with_suffix(path.suffix + ".bak")
-        shutil.copy2(path, backup)
-
-    content = serialize_config(config)
     dir_ = path.parent
     fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
     fd_closed = False
@@ -95,3 +118,14 @@ def write_config(path: Path, config: dict[str, Any]) -> None:
         if os.path.exists(tmp):
             os.unlink(tmp)
         raise
+
+
+def write_config(path: Path, config: dict[str, Any]) -> None:
+    if path.exists():
+        shutil.copy2(path, backup_path(path))
+    _atomic_write(path, serialize_config(config))
+
+
+def revert_config(path: Path, config: dict[str, Any]) -> None:
+    _atomic_write(path, serialize_config(config))
+    backup_path(path).unlink()
