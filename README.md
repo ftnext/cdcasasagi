@@ -1,6 +1,12 @@
 # cdcasasagi
 鵲 - Bridge Claude Desktop to Streamable HTTP MCP servers via mcp-proxy
 
+> [!IMPORTANT]
+> As of now, Claude Desktop officially supports [custom connectors](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp) for remote MCP servers.
+> I recommend considering that option first.
+> While [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy) is a great and easy-to-use tool, the scenarios where it is still necessary are likely limited now that official support exists.
+> Additionally, custom connectors work not only with Claude Desktop but also with the web version of Claude, once configured.
+
 ## Install
 
 ```
