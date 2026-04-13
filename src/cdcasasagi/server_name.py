@@ -3,8 +3,7 @@ from __future__ import annotations
 import ipaddress
 from urllib.parse import urlparse
 
-_GENERIC_SUBDOMAINS = {"mcp", "api", "app", "www"}
-_MCP_API_FRAGMENTS = {"mcp", "api"}
+_GENERIC_SUBDOMAINS = {"mcp", "mcp-server", "api", "app", "www"}
 
 
 class NameDerivationError(Exception):
@@ -30,11 +29,7 @@ def derive_server_name(url: str) -> str:
     sld = labels[-2]
     head = labels[0]
 
-    if (
-        head != sld
-        and head not in _GENERIC_SUBDOMAINS
-        and not any(frag in head for frag in _MCP_API_FRAGMENTS)
-    ):
+    if head != sld and head not in _GENERIC_SUBDOMAINS:
         candidate = head
     else:
         candidate = sld
