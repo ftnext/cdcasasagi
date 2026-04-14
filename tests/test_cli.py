@@ -443,3 +443,10 @@ class TestImportValidationErrors:
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert "entry[0]: must be an object" in result.output
+
+    def test_non_utf8_file(self, config_env, tmp_path):
+        input_file = tmp_path / "servers.json"
+        input_file.write_bytes(b"\xff\xfe invalid utf-8")
+        result = runner.invoke(app, ["import", str(input_file)])
+        assert result.exit_code == 1
+        assert "Cannot read file" in result.output
