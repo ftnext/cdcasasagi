@@ -28,6 +28,7 @@ dependencies = [
     "typer>=0.9",
     "mcp-proxy",
 ]
+keywords = ["Claude Desktop", "remote MCP servers", "mcp-proxy"]
 
 [project.scripts]
 cdcasasagi = "cdcasasagi:main"
@@ -41,3 +42,6 @@ dev = [
     "pytest>=7",
     "ruff>=0.15.10",
 ]
+
+[project.urls]
+Repository = "https://github.com/ftnext/cdcasasagi"
