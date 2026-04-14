@@ -11,6 +11,8 @@ uv sync                                        # Install dependencies
 uv run pytest                                  # Run all tests
 uv run pytest tests/test_cli.py                # Run a single test file
 uv run pytest tests/test_cli.py -k test_name   # Run a single test by name
+uv run ruff check src/ tests/                  # Lint
+uv run ruff format src/ tests/                 # Format
 uv build                                       # Build package
 ```
 
