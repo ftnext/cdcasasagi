@@ -148,17 +148,20 @@ def _parse_import_file(file_path: str) -> tuple[list, str]:
 
 def _parse_jsonl(text: str, source_label: str) -> list:
     """Parse JSON Lines: one JSON value per non-blank line."""
-    lines = [line for line in text.splitlines() if line.strip()]
-    if not lines:
-        return []
-
     entries = []
     errors: list[str] = []
-    for i, line in enumerate(lines, 1):
+    has_content = False
+    for i, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        has_content = True
         try:
             entries.append(json.loads(line))
         except json.JSONDecodeError as e:
             errors.append(f"line {i}: {e}")
+
+    if not has_content:
+        return []
 
     if errors:
         typer.echo(

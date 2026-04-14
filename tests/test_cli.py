@@ -354,6 +354,15 @@ class TestImportValidationErrors:
         assert "Failed to parse JSON Lines" in result.output
         assert "line 2" in result.output
 
+    def test_invalid_line_after_blank_reports_correct_line_number(
+        self, config_env, tmp_path
+    ):
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text('{"url": "https://mcp.notion.com/mcp"}\n\nnot json\n')
+        result = runner.invoke(app, ["import", str(input_file)])
+        assert result.exit_code == 1
+        assert "line 3" in result.output
+
     def test_empty_input(self, config_env, tmp_path):
         input_file = tmp_path / "servers.jsonl"
         input_file.write_text("")
