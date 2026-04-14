@@ -177,7 +177,6 @@ def _validate_import_schema(raw_entries: list) -> list[str]:
 
 def _resolve_import_entries(
     raw_entries: list[dict],
-    default_transport: str,
     proxy_path: Path,
 ) -> list[tuple[str, str, dict]]:
     """Validate URLs, derive names, build config entries.
@@ -205,7 +204,7 @@ def _resolve_import_entries(
                 errors.append(f'entry[{i}]: {e}. Set "name" explicitly for this entry')
                 continue
 
-        transport = raw.get("transport", default_transport)
+        transport = raw.get("transport", "streamablehttp")
         entry = desktop_config.build_entry(proxy_path, transport, url)
         resolved.append((name, url, entry))
 
@@ -247,9 +246,6 @@ def _resolve_import_entries(
 @app.command(name="import")
 def import_cmd(
     file: str = typer.Argument(..., help="Path to JSON file (use - for stdin)"),
-    transport: str = typer.Option(
-        "streamablehttp", help="Default transport for entries without one"
-    ),
     force: bool = typer.Option(False, help="Overwrite existing entries on conflict"),
     write: bool = typer.Option(False, help="Actually write to the file"),
     verbose: bool = typer.Option(False, help="Show full diff in preview"),
@@ -268,7 +264,7 @@ def import_cmd(
         typer.echo("\n".join(schema_errors), err=True)
         raise typer.Exit(code=1)
 
-    resolved = _resolve_import_entries(raw_entries, transport, proxy_path)
+    resolved = _resolve_import_entries(raw_entries, proxy_path)
 
     cfg_path = desktop_config.config_path()
     try:
