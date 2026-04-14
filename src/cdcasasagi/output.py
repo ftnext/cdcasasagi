@@ -93,3 +93,117 @@ def write_message(
     lines.append("")
     lines.append(f'Added "{name}". Restart Claude Desktop to take effect.')
     return "\n".join(lines)
+
+
+def import_preview_message(
+    config_path: Path,
+    source: str,
+    entry_count: int,
+    plan: list[tuple[str, str, str]],
+    force: bool,
+    verbose_diff: str | None = None,
+) -> str:
+    lines: list[str] = []
+    lines.append(f"Target: {config_path}")
+    entry_word = "entry" if entry_count == 1 else "entries"
+    lines.append(f"Source: {source} ({entry_count} {entry_word})")
+    lines.append("")
+    lines.append("Plan:")
+
+    max_name_len = max((len(n) for n, _, _ in plan), default=0)
+
+    counts: dict[str, int] = {"add": 0, "identical": 0, "conflict": 0, "overwrite": 0}
+
+    for name, action, url in plan:
+        padded = name.ljust(max_name_len)
+        if action == "add":
+            lines.append(f"  + {padded}  {url}")
+            counts["add"] += 1
+        elif action == "identical":
+            lines.append(f"  = {padded}  {url}  (identical, skipped)")
+            counts["identical"] += 1
+        elif action == "conflict":
+            if force:
+                lines.append(f"  ~ {padded}  {url}  (overwrite)")
+                counts["overwrite"] += 1
+            else:
+                lines.append(
+                    f"  ! {padded}  {url}"
+                    "  (name conflict, use --force to overwrite)"
+                )
+                counts["conflict"] += 1
+
+    lines.append("")
+
+    summary_parts: list[str] = []
+    if counts["add"]:
+        summary_parts.append(f"{counts['add']} to add")
+    if counts["overwrite"]:
+        summary_parts.append(f"{counts['overwrite']} to overwrite")
+    if counts["identical"]:
+        summary_parts.append(f"{counts['identical']} identical")
+    if counts["conflict"]:
+        summary_parts.append(f"{counts['conflict']} conflict")
+    lines.append(f"Summary: {', '.join(summary_parts)}")
+
+    if verbose_diff:
+        lines.append("")
+        lines.append(verbose_diff.rstrip())
+
+    if counts["conflict"] > 0:
+        lines.append(
+            f"Error: {counts['conflict']} name conflict without --force. Aborting."
+        )
+    else:
+        lines.append("This is a preview. Re-run with --write to apply.")
+
+    return "\n".join(lines)
+
+
+def import_write_message(
+    config_path: Path,
+    source: str,
+    plan: list[tuple[str, str, str]],
+    force: bool,
+    file_existed: bool,
+) -> str:
+    lines: list[str] = []
+    lines.append(f"Target: {config_path}")
+    lines.append(f"Source: {source}")
+    lines.append("")
+    lines.append("Applied:")
+
+    add_count = 0
+    overwrite_count = 0
+
+    for name, action, _url in plan:
+        if action == "add":
+            lines.append(f"  + {name}")
+            add_count += 1
+        elif action == "identical":
+            lines.append(f"  = {name} (unchanged)")
+        elif action == "conflict" and force:
+            lines.append(f"  ~ {name}")
+            overwrite_count += 1
+
+    lines.append("")
+
+    if file_existed:
+        backup = config_path.with_suffix(config_path.suffix + ".bak")
+        lines.append(f"Backup: {backup}")
+    lines.append(f"Wrote:  {config_path}")
+    lines.append("")
+
+    total = add_count + overwrite_count
+    entry_word = "entry" if total == 1 else "entries"
+    parts: list[str] = []
+    if add_count:
+        parts.append(f"Added {add_count}")
+    if overwrite_count:
+        parts.append(f"overwrote {overwrite_count}")
+    action_text = " and ".join(parts)
+    lines.append(
+        f"\u2713 {action_text} {entry_word}. Restart Claude Desktop to take effect."
+    )
+
+    return "\n".join(lines)
