@@ -128,7 +128,7 @@ def _parse_import_file(file_path: str) -> tuple[list, str]:
             raise typer.Exit(code=1)
         try:
             text = path.read_text(encoding="utf-8")
-        except OSError as e:
+        except (OSError, UnicodeDecodeError) as e:
             typer.echo(f"Cannot read file: {file_path}\n{e}", err=True)
             raise typer.Exit(code=1)
         source_label = file_path
