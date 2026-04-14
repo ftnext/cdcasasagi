@@ -108,6 +108,8 @@ def plan_import(
     ``'add'``, ``'identical'``, or ``'conflict'``.
     """
     servers = config.get("mcpServers", {})
+    if not isinstance(servers, dict):
+        servers = {}
     plan: list[tuple[str, str, dict[str, Any]]] = []
     for name, entry in entries:
         if name not in servers:
@@ -126,7 +128,7 @@ def apply_import(
 ) -> dict[str, Any]:
     """Apply an import plan – adds new entries and overwrites conflicts when *force*."""
     config = json.loads(json.dumps(config))  # deep copy
-    if "mcpServers" not in config:
+    if not isinstance(config.get("mcpServers"), dict):
         config["mcpServers"] = {}
     for name, action, entry in plan:
         if action == "add" or (action == "conflict" and force):
