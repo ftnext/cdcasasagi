@@ -163,9 +163,7 @@ def _validate_import_schema(raw_entries: list) -> list[str]:
             continue
         unknown = set(entry.keys()) - _VALID_ENTRY_KEYS
         if unknown:
-            errors.append(
-                f"entry[{i}]: unknown keys: {', '.join(sorted(unknown))}"
-            )
+            errors.append(f"entry[{i}]: unknown keys: {', '.join(sorted(unknown))}")
         if "url" not in entry:
             errors.append(f'entry[{i}]: missing required key "url"')
         elif not isinstance(entry["url"], str):
@@ -193,9 +191,7 @@ def _resolve_import_entries(
         url = raw["url"]
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
-            errors.append(
-                f"entry[{i}]: Please specify a valid HTTP(S) URL: {url}"
-            )
+            errors.append(f"entry[{i}]: Please specify a valid HTTP(S) URL: {url}")
             continue
         if not parsed.hostname:
             errors.append(f"entry[{i}]: Invalid URL format: {url}")
@@ -206,9 +202,7 @@ def _resolve_import_entries(
             try:
                 name = server_name.derive_server_name(url)
             except server_name.NameDerivationError as e:
-                errors.append(
-                    f'entry[{i}]: {e}. Set "name" explicitly for this entry'
-                )
+                errors.append(f'entry[{i}]: {e}. Set "name" explicitly for this entry')
                 continue
 
         transport = raw.get("transport", default_transport)
@@ -305,8 +299,7 @@ def import_cmd(
     file_existed = cfg_path.exists()
 
     has_changes = any(
-        action == "add" or (action == "conflict" and force)
-        for _, action, _ in plan
+        action == "add" or (action == "conflict" and force) for _, action, _ in plan
     )
 
     if not write:

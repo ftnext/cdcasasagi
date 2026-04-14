@@ -171,7 +171,11 @@ class TestImportWriteMessage:
             ("linear", "add", "https://mcp.linear.app/mcp"),
         ]
         msg = import_write_message(
-            Path("/tmp/config.json"), "servers.json", plan, force=False, file_existed=False
+            Path("/tmp/config.json"),
+            "servers.json",
+            plan,
+            force=False,
+            file_existed=False,
         )
         assert "Target: /tmp/config.json" in msg
         assert "Source: servers.json" in msg
@@ -186,7 +190,11 @@ class TestImportWriteMessage:
     def test_with_backup(self):
         plan = [("notion", "add", "https://mcp.notion.com/mcp")]
         msg = import_write_message(
-            Path("/tmp/config.json"), "servers.json", plan, force=False, file_existed=True
+            Path("/tmp/config.json"),
+            "servers.json",
+            plan,
+            force=False,
+            file_existed=True,
         )
         assert "Backup:" in msg
 
@@ -196,7 +204,11 @@ class TestImportWriteMessage:
             ("existing", "conflict", "https://example.com/mcp"),
         ]
         msg = import_write_message(
-            Path("/tmp/config.json"), "servers.json", plan, force=True, file_existed=True
+            Path("/tmp/config.json"),
+            "servers.json",
+            plan,
+            force=True,
+            file_existed=True,
         )
         assert "  + notion" in msg
         assert "  ~ existing" in msg
@@ -209,13 +221,21 @@ class TestImportWriteMessage:
             ("linear", "identical", "https://mcp.linear.app/mcp"),
         ]
         msg = import_write_message(
-            Path("/tmp/config.json"), "servers.json", plan, force=False, file_existed=True
+            Path("/tmp/config.json"),
+            "servers.json",
+            plan,
+            force=False,
+            file_existed=True,
         )
         assert "  = linear (unchanged)" in msg
 
     def test_single_entry_word(self):
         plan = [("notion", "add", "https://mcp.notion.com/mcp")]
         msg = import_write_message(
-            Path("/tmp/config.json"), "servers.json", plan, force=False, file_existed=False
+            Path("/tmp/config.json"),
+            "servers.json",
+            plan,
+            force=False,
+            file_existed=False,
         )
         assert "1 entry" in msg

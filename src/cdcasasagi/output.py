@@ -128,8 +128,7 @@ def import_preview_message(
                 counts["overwrite"] += 1
             else:
                 lines.append(
-                    f"  ! {padded}  {url}"
-                    "  (name conflict, use --force to overwrite)"
+                    f"  ! {padded}  {url}  (name conflict, use --force to overwrite)"
                 )
                 counts["conflict"] += 1
 

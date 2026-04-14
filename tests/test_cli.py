@@ -166,7 +166,9 @@ class TestRevert:
     def test_revert_removes_backup_file(self, config_env):
         config_file, _ = config_env
         original = {"mcpServers": {"old": {"command": "x"}}}
-        config_file.write_text(json.dumps({"mcpServers": {"old": {"command": "x"}, "notion": {}}}))
+        config_file.write_text(
+            json.dumps({"mcpServers": {"old": {"command": "x"}, "notion": {}}})
+        )
         bak = config_file.with_suffix(".json.bak")
         bak.write_text(json.dumps(original))
         result = runner.invoke(app, ["revert"])
@@ -179,10 +181,14 @@ class TestImportPreview:
     def test_preview_basic(self, config_env, tmp_path):
         config_file, _ = config_env
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-            {"url": "https://mcp.linear.app/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                    {"url": "https://mcp.linear.app/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 0
         assert "Plan:" in result.output
@@ -194,9 +200,13 @@ class TestImportPreview:
     def test_preview_explicit_names(self, config_env, tmp_path):
         config_file, _ = config_env
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp", "name": "my-notion"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp", "name": "my-notion"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 0
         assert "my-notion" in result.output
@@ -204,9 +214,13 @@ class TestImportPreview:
     def test_preview_per_entry_transport(self, config_env, tmp_path):
         config_file, fake_proxy = config_env
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp", "transport": "sse"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp", "transport": "sse"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file), "--write"])
         assert result.exit_code == 0
         data = json.loads(config_file.read_text())
@@ -215,9 +229,13 @@ class TestImportPreview:
     def test_preview_verbose(self, config_env, tmp_path):
         config_file, _ = config_env
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file), "--verbose"])
         assert result.exit_code == 0
         assert "proposed" in result.output
@@ -235,10 +253,14 @@ class TestImportWrite:
     def test_write_creates_file(self, config_env, tmp_path):
         config_file, fake_proxy = config_env
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-            {"url": "https://developers.openai.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                    {"url": "https://developers.openai.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file), "--write"])
         assert result.exit_code == 0
         assert config_file.exists()
@@ -251,9 +273,13 @@ class TestImportWrite:
         config_file, _ = config_env
         config_file.write_text(json.dumps({"mcpServers": {}}))
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file), "--write"])
         assert result.exit_code == 0
         assert config_file.with_suffix(".json.bak").exists()
@@ -264,9 +290,13 @@ class TestImportWrite:
             json.dumps({"mcpServers": {"old": {"command": "y"}}, "other": "keep"})
         )
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file), "--write"])
         assert result.exit_code == 0
         data = json.loads(config_file.read_text())
@@ -282,9 +312,13 @@ class TestImportWrite:
         }
         config_file.write_text(json.dumps({"mcpServers": {"notion": entry}}))
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file), "--write"])
         assert result.exit_code == 0
         assert "No changes needed" in result.output
@@ -293,11 +327,17 @@ class TestImportWrite:
 class TestImportConflicts:
     def test_conflict_without_force_aborts(self, config_env, tmp_path):
         config_file, _ = config_env
-        config_file.write_text(json.dumps({"mcpServers": {"notion": {"command": "old"}}}))
+        config_file.write_text(
+            json.dumps({"mcpServers": {"notion": {"command": "old"}}})
+        )
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert "name conflict" in result.output
@@ -305,14 +345,18 @@ class TestImportConflicts:
 
     def test_conflict_with_force_overwrites(self, config_env, tmp_path):
         config_file, fake_proxy = config_env
-        config_file.write_text(json.dumps({"mcpServers": {"notion": {"command": "old"}}}))
-        input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
-        result = runner.invoke(
-            app, ["import", str(input_file), "--force", "--write"]
+        config_file.write_text(
+            json.dumps({"mcpServers": {"notion": {"command": "old"}}})
         )
+        input_file = tmp_path / "servers.json"
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
+        result = runner.invoke(app, ["import", str(input_file), "--force", "--write"])
         assert result.exit_code == 0
         data = json.loads(config_file.read_text())
         assert data["mcpServers"]["notion"]["command"] == str(fake_proxy)
@@ -325,9 +369,13 @@ class TestImportConflicts:
         }
         config_file.write_text(json.dumps({"mcpServers": {"notion": entry}}))
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 0
         assert "identical" in result.output
@@ -364,9 +412,9 @@ class TestImportValidationErrors:
 
     def test_unknown_keys(self, config_env, tmp_path):
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp", "typo": "bad"}
-        ]))
+        input_file.write_text(
+            json.dumps([{"url": "https://mcp.notion.com/mcp", "typo": "bad"}])
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert "unknown keys" in result.output
@@ -374,10 +422,14 @@ class TestImportValidationErrors:
 
     def test_multiple_schema_errors(self, config_env, tmp_path):
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"name": "test"},
-            {"url": "https://example.com", "bad": "key"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"name": "test"},
+                    {"url": "https://example.com", "bad": "key"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert "entry[0]" in result.output
@@ -385,38 +437,54 @@ class TestImportValidationErrors:
 
     def test_duplicate_names(self, config_env, tmp_path):
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp", "name": "test"},
-            {"url": "https://mcp.linear.app/mcp", "name": "test"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp", "name": "test"},
+                    {"url": "https://mcp.linear.app/mcp", "name": "test"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert 'Duplicate name "test"' in result.output
 
     def test_duplicate_urls(self, config_env, tmp_path):
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp", "name": "a"},
-            {"url": "https://mcp.notion.com/mcp", "name": "b"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp", "name": "a"},
+                    {"url": "https://mcp.notion.com/mcp", "name": "b"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert "Duplicate url" in result.output
 
     def test_invalid_url_scheme(self, config_env, tmp_path):
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "ftp://example.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "ftp://example.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert "HTTP(S) URL" in result.output
 
     def test_name_derivation_failure(self, config_env, tmp_path):
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://localhost/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://localhost/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert '"name"' in result.output
@@ -430,9 +498,13 @@ class TestImportValidationErrors:
         config_file, _ = config_env
         config_file.write_text("not json")
         input_file = tmp_path / "servers.json"
-        input_file.write_text(json.dumps([
-            {"url": "https://mcp.notion.com/mcp"},
-        ]))
+        input_file.write_text(
+            json.dumps(
+                [
+                    {"url": "https://mcp.notion.com/mcp"},
+                ]
+            )
+        )
         result = runner.invoke(app, ["import", str(input_file)])
         assert result.exit_code == 1
         assert "Failed to parse JSON config" in result.output
