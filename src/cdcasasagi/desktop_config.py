@@ -98,6 +98,42 @@ def merge_entry(
     return config
 
 
+def plan_import(
+    config: dict[str, Any],
+    entries: list[tuple[str, dict[str, Any]]],
+) -> list[tuple[str, str, dict[str, Any]]]:
+    """Classify import entries against current config.
+
+    Returns list of ``(name, action, entry)`` where *action* is one of
+    ``'add'``, ``'identical'``, or ``'conflict'``.
+    """
+    servers = config.get("mcpServers", {})
+    plan: list[tuple[str, str, dict[str, Any]]] = []
+    for name, entry in entries:
+        if name not in servers:
+            plan.append((name, "add", entry))
+        elif servers[name] == entry:
+            plan.append((name, "identical", entry))
+        else:
+            plan.append((name, "conflict", entry))
+    return plan
+
+
+def apply_import(
+    config: dict[str, Any],
+    plan: list[tuple[str, str, dict[str, Any]]],
+    force: bool,
+) -> dict[str, Any]:
+    """Apply an import plan – adds new entries and overwrites conflicts when *force*."""
+    config = json.loads(json.dumps(config))  # deep copy
+    if "mcpServers" not in config:
+        config["mcpServers"] = {}
+    for name, action, entry in plan:
+        if action == "add" or (action == "conflict" and force):
+            config["mcpServers"][name] = entry
+    return config
+
+
 def serialize_config(config: dict[str, Any]) -> str:
     return json.dumps(config, indent=2, ensure_ascii=False) + "\n"
 

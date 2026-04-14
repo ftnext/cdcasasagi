@@ -8,12 +8,14 @@ from cdcasasagi.desktop_config import (
     BackupNotFoundError,
     ConfigError,
     EntryExistsError,
+    apply_import,
     backup_path,
     build_entry,
     config_path,
     load_backup,
     load_config,
     merge_entry,
+    plan_import,
     revert_config,
     write_config,
 )
@@ -209,3 +211,88 @@ class TestRevertConfig:
         bak.write_text(json.dumps({"mcpServers": {}}))
         revert_config(p, {"mcpServers": {}})
         assert p.read_text().endswith("\n")
+
+
+class TestPlanImport:
+    def test_all_new(self):
+        config = {"mcpServers": {}}
+        entries = [("a", {"command": "x"}), ("b", {"command": "y"})]
+        plan = plan_import(config, entries)
+        assert plan == [
+            ("a", "add", {"command": "x"}),
+            ("b", "add", {"command": "y"}),
+        ]
+
+    def test_identical(self):
+        config = {"mcpServers": {"a": {"command": "x"}}}
+        entries = [("a", {"command": "x"})]
+        plan = plan_import(config, entries)
+        assert plan == [("a", "identical", {"command": "x"})]
+
+    def test_conflict(self):
+        config = {"mcpServers": {"a": {"command": "old"}}}
+        entries = [("a", {"command": "new"})]
+        plan = plan_import(config, entries)
+        assert plan == [("a", "conflict", {"command": "new"})]
+
+    def test_mixed(self):
+        config = {"mcpServers": {"existing": {"command": "x"}}}
+        entries = [
+            ("existing", {"command": "x"}),  # identical
+            ("new", {"command": "y"}),  # add
+        ]
+        plan = plan_import(config, entries)
+        assert plan[0][1] == "identical"
+        assert plan[1][1] == "add"
+
+    def test_empty_mcpservers(self):
+        config = {"other": "value"}
+        entries = [("a", {"command": "x"})]
+        plan = plan_import(config, entries)
+        assert plan == [("a", "add", {"command": "x"})]
+
+
+class TestApplyImport:
+    def test_adds_new_entries(self):
+        config = {"mcpServers": {}}
+        plan = [("a", "add", {"command": "x"}), ("b", "add", {"command": "y"})]
+        result = apply_import(config, plan, force=False)
+        assert "a" in result["mcpServers"]
+        assert "b" in result["mcpServers"]
+
+    def test_skips_identical(self):
+        config = {"mcpServers": {"a": {"command": "x"}}}
+        plan = [("a", "identical", {"command": "x"})]
+        result = apply_import(config, plan, force=False)
+        assert result["mcpServers"]["a"] == {"command": "x"}
+
+    def test_skips_conflict_without_force(self):
+        config = {"mcpServers": {"a": {"command": "old"}}}
+        plan = [("a", "conflict", {"command": "new"})]
+        result = apply_import(config, plan, force=False)
+        assert result["mcpServers"]["a"] == {"command": "old"}
+
+    def test_overwrites_conflict_with_force(self):
+        config = {"mcpServers": {"a": {"command": "old"}}}
+        plan = [("a", "conflict", {"command": "new"})]
+        result = apply_import(config, plan, force=True)
+        assert result["mcpServers"]["a"] == {"command": "new"}
+
+    def test_preserves_other_keys(self):
+        config = {"mcpServers": {"old": {"command": "y"}}, "other": "keep"}
+        plan = [("new", "add", {"command": "x"})]
+        result = apply_import(config, plan, force=False)
+        assert result["other"] == "keep"
+        assert "old" in result["mcpServers"]
+
+    def test_does_not_mutate_original(self):
+        config = {"mcpServers": {}}
+        plan = [("a", "add", {"command": "x"})]
+        apply_import(config, plan, force=False)
+        assert "a" not in config["mcpServers"]
+
+    def test_creates_mcpservers_if_missing(self):
+        config = {"other": "value"}
+        plan = [("a", "add", {"command": "x"})]
+        result = apply_import(config, plan, force=False)
+        assert "a" in result["mcpServers"]
