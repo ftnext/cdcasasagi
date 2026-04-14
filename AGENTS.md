@@ -11,7 +11,7 @@ uv sync                                        # Install dependencies
 uv run pytest                                  # Run all tests
 uv run pytest tests/test_cli.py                # Run a single test file
 uv run pytest tests/test_cli.py -k test_name   # Run a single test by name
-uv run ruff check src/ tests/                  # Lint
+uv run ruff check --fix src/ tests/            # Lint
 uv run ruff format src/ tests/                 # Format
 uv build                                       # Build package
 ```
@@ -25,6 +25,16 @@ uv build                                       # Build package
 - `mcp_proxy.py` — Locates `mcp-proxy` binary in the same venv
 - `server_name.py` — Derives server name from URL hostname
 - `output.py` — All user-facing output formatting (diffs, messages)
+
+## Workflow
+
+After implementation is complete, run the following in order:
+
+```bash
+uv run ruff format src/ tests/
+uv run ruff check --fix src/ tests/
+uv run pytest
+```
 
 ## Testing
 
