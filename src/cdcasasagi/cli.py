@@ -119,7 +119,11 @@ def revert() -> None:
 def _parse_import_file(file_path: str) -> tuple[list, str]:
     """Read and parse import JSON.  Returns ``(data, source_label)``."""
     if file_path == "-":
-        text = sys.stdin.read()
+        try:
+            text = sys.stdin.read()
+        except UnicodeDecodeError as e:
+            typer.echo(f"Cannot read stdin: {e}", err=True)
+            raise typer.Exit(code=1)
         source_label = "stdin"
     else:
         path = Path(file_path)
