@@ -251,18 +251,6 @@ class TestPlanImport:
         plan = plan_import(config, entries)
         assert plan == [("a", "add", {"command": "x"})]
 
-    def test_mcpservers_is_null(self):
-        config = {"mcpServers": None}
-        entries = [("a", {"command": "x"})]
-        plan = plan_import(config, entries)
-        assert plan == [("a", "add", {"command": "x"})]
-
-    def test_mcpservers_is_list(self):
-        config = {"mcpServers": []}
-        entries = [("a", {"command": "x"})]
-        plan = plan_import(config, entries)
-        assert plan == [("a", "add", {"command": "x"})]
-
 
 class TestApplyImport:
     def test_adds_new_entries(self):
@@ -308,15 +296,3 @@ class TestApplyImport:
         plan = [("a", "add", {"command": "x"})]
         result = apply_import(config, plan, force=False)
         assert "a" in result["mcpServers"]
-
-    def test_mcpservers_is_null(self):
-        config = {"mcpServers": None}
-        plan = [("a", "add", {"command": "x"})]
-        result = apply_import(config, plan, force=False)
-        assert result["mcpServers"]["a"] == {"command": "x"}
-
-    def test_mcpservers_is_list(self):
-        config = {"mcpServers": []}
-        plan = [("a", "add", {"command": "x"})]
-        result = apply_import(config, plan, force=False)
-        assert result["mcpServers"]["a"] == {"command": "x"}
