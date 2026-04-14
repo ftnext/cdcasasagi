@@ -47,7 +47,7 @@ Tests use `pytest` with `typer.testing.CliRunner`. The `config_env` fixture sets
 - Never modify top-level keys other than `mcpServers`.
 - Assume config structure is valid (Claude Desktop is using it). Only handle `mcpServers` key being absent (create as `{}`). Do not add handling for non-object JSON or non-dict `mcpServers` (see reverts `0f936eb`, `9a7cb75`).
 - Never fall back to PATH / `shutil.which` for `mcp-proxy`. Resolve from the same venv only.
-- Reject unknown keys in import JSON — never silently ignore.
+- Reject unknown keys in import JSONL — never silently ignore.
 
 ## Git Rules
 
