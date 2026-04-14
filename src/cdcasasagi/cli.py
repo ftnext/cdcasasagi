@@ -117,7 +117,7 @@ def revert() -> None:
 
 
 def _parse_import_file(file_path: str) -> tuple[list, str]:
-    """Read and parse import JSON.  Returns ``(data, source_label)``."""
+    """Read and parse import JSONL.  Returns ``(data, source_label)``."""
     if file_path == "-":
         try:
             text = sys.stdin.read()
@@ -137,21 +137,37 @@ def _parse_import_file(file_path: str) -> tuple[list, str]:
             raise typer.Exit(code=1)
         source_label = file_path
 
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as e:
-        typer.echo(f"Failed to parse JSON from {source_label}: {e}", err=True)
-        raise typer.Exit(code=1)
-
-    if not isinstance(data, list):
-        typer.echo("Input must be a JSON array of entries", err=True)
-        raise typer.Exit(code=1)
+    data = _parse_jsonl(text, source_label)
 
     if len(data) == 0:
         typer.echo("Input contains no entries", err=True)
         raise typer.Exit(code=1)
 
     return data, source_label
+
+
+def _parse_jsonl(text: str, source_label: str) -> list:
+    """Parse JSON Lines: one JSON value per non-blank line."""
+    lines = [line for line in text.splitlines() if line.strip()]
+    if not lines:
+        return []
+
+    entries = []
+    errors: list[str] = []
+    for i, line in enumerate(lines, 1):
+        try:
+            entries.append(json.loads(line))
+        except json.JSONDecodeError as e:
+            errors.append(f"line {i}: {e}")
+
+    if errors:
+        typer.echo(
+            f"Failed to parse JSON Lines from {source_label}:\n" + "\n".join(errors),
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    return entries
 
 
 def _validate_import_schema(raw_entries: list) -> list[str]:
@@ -245,7 +261,7 @@ def _resolve_import_entries(
 
 @app.command(name="import")
 def import_cmd(
-    file: str = typer.Argument(..., help="Path to JSON file (use - for stdin)"),
+    file: str = typer.Argument(..., help="Path to JSONL file (use - for stdin)"),
     force: bool = typer.Option(False, help="Overwrite existing entries on conflict"),
     write: bool = typer.Option(False, help="Actually write to the file"),
     verbose: bool = typer.Option(False, help="Show full diff in preview"),
