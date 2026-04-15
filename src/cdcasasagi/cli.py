@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -17,6 +18,11 @@ app = typer.Typer(pretty_exceptions_enable=False)
 @app.callback()
 def _callback() -> None:
     pass
+
+
+@app.command()
+def version() -> None:
+    typer.echo(_pkg_version("cdcasasagi"))
 
 
 def _validate_url(url: str) -> None:

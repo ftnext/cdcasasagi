@@ -1,4 +1,5 @@
 import json
+from importlib.metadata import version as pkg_version
 
 import pytest
 from typer.testing import CliRunner
@@ -20,6 +21,13 @@ def config_env(tmp_path, monkeypatch):
 
     monkeypatch.setattr("cdcasasagi.mcp_proxy.sys.executable", str(fake_python))
     return config_file, fake_proxy
+
+
+class TestVersion:
+    def test_version(self):
+        result = runner.invoke(app, ["version"])
+        assert result.exit_code == 0
+        assert result.output.strip() == pkg_version("cdcasasagi")
 
 
 class TestAddPreview:
