@@ -201,8 +201,6 @@ def import_write_message(
     if overwrite_count:
         parts.append(f"overwrote {overwrite_count}")
     action_text = " and ".join(parts)
-    lines.append(
-        f"\u2713 {action_text} {entry_word}. Restart Claude Desktop to take effect."
-    )
+    lines.append(f"{action_text} {entry_word}. Restart Claude Desktop to take effect.")
 
     return "\n".join(lines)
