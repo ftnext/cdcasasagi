@@ -21,6 +21,10 @@ class BackupNotFoundError(Exception):
     pass
 
 
+class DuplicateUrlError(Exception):
+    pass
+
+
 class BackupError(Exception):
     pass
 
@@ -74,6 +78,16 @@ def load_backup(path: Path) -> dict[str, Any]:
         ) from e
 
 
+def find_entry_names_by_url(config: dict[str, Any], url: str) -> list[str]:
+    """Return names of all entries whose args end with *url*."""
+    names: list[str] = []
+    for name, entry in config.get("mcpServers", {}).items():
+        args = entry.get("args", [])
+        if args and args[-1] == url:
+            names.append(name)
+    return names
+
+
 def build_entry(mcp_proxy_path: Path, transport: str, url: str) -> dict[str, Any]:
     return {
         "command": str(mcp_proxy_path),
@@ -86,10 +100,22 @@ def merge_entry(
     name: str,
     entry: dict[str, Any],
     force: bool,
+    *,
+    url: str | None = None,
 ) -> dict[str, Any]:
     config = json.loads(json.dumps(config))  # deep copy
     if "mcpServers" not in config:
         config["mcpServers"] = {}
+
+    if url is not None:
+        others = [n for n in find_entry_names_by_url(config, url) if n != name]
+        if others:
+            if not force:
+                raise DuplicateUrlError(
+                    f'URL already configured as "{others[0]}". Use --force to overwrite'
+                )
+            for n in others:
+                del config["mcpServers"][n]
 
     if name in config["mcpServers"] and not force:
         raise EntryExistsError(f'"{name}" already exists. Use --force to overwrite')

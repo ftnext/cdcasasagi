@@ -112,6 +112,74 @@ class TestAddErrors:
         data = json.loads(config_file.read_text())
         assert data["mcpServers"]["notion"]["command"] != "old"
 
+    def test_duplicate_url_different_name(self, config_env):
+        config_file, fake_proxy = config_env
+        entry = {
+            "command": str(fake_proxy),
+            "args": [
+                "--transport",
+                "streamablehttp",
+                "https://mcp.notion.com/mcp",
+            ],
+        }
+        config_file.write_text(json.dumps({"mcpServers": {"notion": entry}}))
+        result = runner.invoke(
+            app, ["add", "https://mcp.notion.com/mcp", "--name", "my-notion"]
+        )
+        assert result.exit_code == 1
+        assert "already configured" in result.output
+        assert '"notion"' in result.output
+        assert "--force" in result.output
+
+    def test_duplicate_url_with_force(self, config_env):
+        config_file, fake_proxy = config_env
+        entry = {
+            "command": str(fake_proxy),
+            "args": [
+                "--transport",
+                "streamablehttp",
+                "https://mcp.notion.com/mcp",
+            ],
+        }
+        config_file.write_text(json.dumps({"mcpServers": {"notion": entry}}))
+        result = runner.invoke(
+            app,
+            [
+                "add",
+                "https://mcp.notion.com/mcp",
+                "--name",
+                "my-notion",
+                "--force",
+                "--write",
+            ],
+        )
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert "my-notion" in data["mcpServers"]
+        assert "notion" not in data["mcpServers"]
+
+    def test_duplicate_url_force_removes_all(self, config_env):
+        config_file, fake_proxy = config_env
+        url = "https://mcp.notion.com/mcp"
+        entry = {
+            "command": str(fake_proxy),
+            "args": ["--transport", "streamablehttp", url],
+        }
+        config_file.write_text(
+            json.dumps(
+                {"mcpServers": {"notion-a": entry, "notion-b": entry, "other": {}}}
+            )
+        )
+        result = runner.invoke(
+            app, ["add", url, "--name", "notion", "--force", "--write"]
+        )
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert "notion" in data["mcpServers"]
+        assert "notion-a" not in data["mcpServers"]
+        assert "notion-b" not in data["mcpServers"]
+        assert "other" in data["mcpServers"]
+
     def test_invalid_json_config(self, config_env):
         config_file, _ = config_env
         config_file.write_text("not json")
