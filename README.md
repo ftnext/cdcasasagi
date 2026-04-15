@@ -15,7 +15,7 @@ uv tool install cdcasasagi
 
 ## Usage
 
-All commands default to **preview mode** (no files are modified). Pass `--write` to apply changes.
+The `add` and `import` commands default to **preview mode** (no files are modified). Pass `--write` to apply changes.
 For full option details, run `cdcasasagi <command> --help`.
 
 ### add
