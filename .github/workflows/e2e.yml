@@ -21,19 +21,18 @@ jobs:
       run: |
         CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
         rm -f "$CONFIG" "$CONFIG.bak"
-    - name: Run E2E - preview (no write)
+
+    # --- add tests ---
+    - name: "add: preview does not write"
       run: |
         CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
         cdcasasagi add https://mcp.notion.com/mcp
-        # File should NOT exist after preview
         test ! -f "$CONFIG"
-    - name: Run E2E - write new config
+    - name: "add: write + backup"
       run: |
         CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
         cdcasasagi add https://mcp.notion.com/mcp --write
-        # File should exist
         test -f "$CONFIG"
-        # Validate JSON structure
         python3 -c "
         import json, sys
         data = json.loads(open(sys.argv[1]).read())
@@ -42,13 +41,8 @@ jobs:
         assert entry['args'] == ['--transport', 'streamablehttp', 'https://mcp.notion.com/mcp']
         print('OK: config written correctly')
         " "$CONFIG"
-    - name: Run E2E - backup created on second write
-      run: |
-        CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
         cdcasasagi add https://huggingface.co/mcp --write
-        # Backup should exist
         test -f "$CONFIG.bak"
-        # Both entries should be present
         python3 -c "
         import json, sys
         data = json.loads(open(sys.argv[1]).read())
@@ -57,11 +51,70 @@ jobs:
         assert 'huggingface' in servers, 'huggingface entry missing'
         print('OK: both entries present, backup created')
         " "$CONFIG"
-    - name: Run E2E - duplicate entry without --force fails
+    - name: "add: duplicate conflict + force"
       run: |
         ! cdcasasagi add https://mcp.notion.com/mcp --write
-    - name: Run E2E - duplicate entry with --force succeeds
-      run: cdcasasagi add https://mcp.notion.com/mcp --force --write
+        cdcasasagi add https://mcp.notion.com/mcp --force --write
+
+    # --- import tests ---
+    - name: Clean config for import tests
+      run: |
+        CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+        rm -f "$CONFIG" "$CONFIG.bak"
+    - name: "import: preview does not write"
+      run: |
+        CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+        JSONL="$RUNNER_TEMP/servers.jsonl"
+        printf '{"url": "https://mcp.notion.com/mcp"}\n{"url": "https://mcp.linear.app/mcp", "name": "my-linear"}\n' > "$JSONL"
+        cdcasasagi import "$JSONL"
+        test ! -f "$CONFIG"
+    - name: "import: write + backup"
+      run: |
+        CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+        JSONL="$RUNNER_TEMP/servers.jsonl"
+        cdcasasagi import "$JSONL" --write
+        test -f "$CONFIG"
+        python3 -c "
+        import json, sys
+        data = json.loads(open(sys.argv[1]).read())
+        servers = data['mcpServers']
+        assert 'notion' in servers, 'notion entry missing'
+        assert 'my-linear' in servers, 'my-linear entry missing'
+        assert len(servers) == 2, f'expected 2 entries, got {len(servers)}'
+        print('OK: import wrote correctly')
+        " "$CONFIG"
+        JSONL2="$RUNNER_TEMP/servers2.jsonl"
+        printf '{"url": "https://huggingface.co/mcp"}\n' > "$JSONL2"
+        cdcasasagi import "$JSONL2" --write
+        test -f "$CONFIG.bak"
+        python3 -c "
+        import json, sys
+        data = json.loads(open(sys.argv[1]).read())
+        servers = data['mcpServers']
+        assert len(servers) == 3, f'expected 3 entries, got {len(servers)}'
+        assert 'huggingface' in servers, 'huggingface entry missing'
+        print('OK: import backup + merge correct')
+        " "$CONFIG"
+    - name: "import: conflict + force"
+      run: |
+        JSONL_CONFLICT="$RUNNER_TEMP/conflict.jsonl"
+        printf '{"url": "https://mcp.notion.com/mcp", "transport": "sse"}\n' > "$JSONL_CONFLICT"
+        ! cdcasasagi import "$JSONL_CONFLICT" --write
+        cdcasasagi import "$JSONL_CONFLICT" --force --write
+
+    # --- revert tests ---
+    - name: "revert: restores backup"
+      run: |
+        CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+        BACKUP_CONTENT=$(cat "$CONFIG.bak")
+        cdcasasagi revert
+        test ! -f "$CONFIG.bak"
+        REVERTED_CONTENT=$(cat "$CONFIG")
+        test "$BACKUP_CONTENT" = "$REVERTED_CONTENT"
+        echo "OK: revert restored backup and removed .bak"
+    - name: "revert: fails without backup"
+      run: |
+        ! cdcasasagi revert
 
   e2e-windows:
     runs-on: windows-latest
@@ -78,20 +131,19 @@ jobs:
         Remove-Item -Force -ErrorAction SilentlyContinue $CONFIG
         Remove-Item -Force -ErrorAction SilentlyContinue "$CONFIG.bak"
       shell: pwsh
-    - name: Run E2E - preview (no write)
+
+    # --- add tests ---
+    - name: "add: preview does not write"
       run: |
         $CONFIG = "$env:APPDATA\Claude\claude_desktop_config.json"
         cdcasasagi add https://mcp.notion.com/mcp
-        # File should NOT exist after preview
         if (Test-Path $CONFIG) { exit 1 }
       shell: pwsh
-    - name: Run E2E - write new config
+    - name: "add: write + backup"
       run: |
         $CONFIG = "$env:APPDATA\Claude\claude_desktop_config.json"
         cdcasasagi add https://mcp.notion.com/mcp --write
-        # File should exist
         if (-not (Test-Path $CONFIG)) { exit 1 }
-        # Validate JSON structure
         python -c @'
         import json, sys
         data = json.loads(open(sys.argv[1]).read())
@@ -100,14 +152,8 @@ jobs:
         assert entry['args'] == ['--transport', 'streamablehttp', 'https://mcp.notion.com/mcp']
         print('OK: config written correctly')
         '@ $CONFIG
-      shell: pwsh
-    - name: Run E2E - backup created on second write
-      run: |
-        $CONFIG = "$env:APPDATA\Claude\claude_desktop_config.json"
         cdcasasagi add https://huggingface.co/mcp --write
-        # Backup should exist
         if (-not (Test-Path "$CONFIG.bak")) { exit 1 }
-        # Both entries should be present
         python -c @'
         import json, sys
         data = json.loads(open(sys.argv[1]).read())
@@ -117,11 +163,88 @@ jobs:
         print('OK: both entries present, backup created')
         '@ $CONFIG
       shell: pwsh
-    - name: Run E2E - duplicate entry without --force fails
+    - name: "add: duplicate conflict + force"
       run: |
         cdcasasagi add https://mcp.notion.com/mcp --write
         if ($LASTEXITCODE -eq 0) { exit 1 } else { $global:LASTEXITCODE = 0 }
+        cdcasasagi add https://mcp.notion.com/mcp --force --write
       shell: pwsh
-    - name: Run E2E - duplicate entry with --force succeeds
-      run: cdcasasagi add https://mcp.notion.com/mcp --force --write
+
+    # --- import tests ---
+    - name: Clean config for import tests
+      run: |
+        $CONFIG = "$env:APPDATA\Claude\claude_desktop_config.json"
+        Remove-Item -Force -ErrorAction SilentlyContinue $CONFIG
+        Remove-Item -Force -ErrorAction SilentlyContinue "$CONFIG.bak"
+      shell: pwsh
+    - name: "import: preview does not write"
+      run: |
+        $CONFIG = "$env:APPDATA\Claude\claude_desktop_config.json"
+        $JSONL = "$env:RUNNER_TEMP\servers.jsonl"
+        @'
+        {"url": "https://mcp.notion.com/mcp"}
+        {"url": "https://mcp.linear.app/mcp", "name": "my-linear"}
+        '@ | Set-Content -Path $JSONL -Encoding utf8NoBOM
+        cdcasasagi import $JSONL
+        if (Test-Path $CONFIG) { exit 1 }
+      shell: pwsh
+    - name: "import: write + backup"
+      run: |
+        $CONFIG = "$env:APPDATA\Claude\claude_desktop_config.json"
+        $JSONL = "$env:RUNNER_TEMP\servers.jsonl"
+        cdcasasagi import $JSONL --write
+        if (-not (Test-Path $CONFIG)) { exit 1 }
+        python -c @'
+        import json, sys
+        data = json.loads(open(sys.argv[1]).read())
+        servers = data['mcpServers']
+        assert 'notion' in servers, 'notion entry missing'
+        assert 'my-linear' in servers, 'my-linear entry missing'
+        assert len(servers) == 2, f'expected 2 entries, got {len(servers)}'
+        print('OK: import wrote correctly')
+        '@ $CONFIG
+        $JSONL2 = "$env:RUNNER_TEMP\servers2.jsonl"
+        @'
+        {"url": "https://huggingface.co/mcp"}
+        '@ | Set-Content -Path $JSONL2 -Encoding utf8NoBOM
+        cdcasasagi import $JSONL2 --write
+        if (-not (Test-Path "$CONFIG.bak")) { exit 1 }
+        python -c @'
+        import json, sys
+        data = json.loads(open(sys.argv[1]).read())
+        servers = data['mcpServers']
+        assert len(servers) == 3, f'expected 3 entries, got {len(servers)}'
+        assert 'huggingface' in servers, 'huggingface entry missing'
+        print('OK: import backup + merge correct')
+        '@ $CONFIG
+      shell: pwsh
+    - name: "import: conflict + force"
+      run: |
+        $JSONL_CONFLICT = "$env:RUNNER_TEMP\conflict.jsonl"
+        @'
+        {"url": "https://mcp.notion.com/mcp", "transport": "sse"}
+        '@ | Set-Content -Path $JSONL_CONFLICT -Encoding utf8NoBOM
+        cdcasasagi import $JSONL_CONFLICT --write
+        if ($LASTEXITCODE -eq 0) { exit 1 } else { $global:LASTEXITCODE = 0 }
+        cdcasasagi import $JSONL_CONFLICT --force --write
+      shell: pwsh
+
+    # --- revert tests ---
+    - name: "revert: restores backup"
+      run: |
+        $CONFIG = "$env:APPDATA\Claude\claude_desktop_config.json"
+        $BACKUP_CONTENT = Get-Content -Raw "$CONFIG.bak"
+        cdcasasagi revert
+        if (Test-Path "$CONFIG.bak") { exit 1 }
+        $REVERTED_CONTENT = Get-Content -Raw $CONFIG
+        if ($BACKUP_CONTENT -ne $REVERTED_CONTENT) {
+          Write-Error "Config content does not match backup"
+          exit 1
+        }
+        Write-Output "OK: revert restored backup and removed .bak"
+      shell: pwsh
+    - name: "revert: fails without backup"
+      run: |
+        cdcasasagi revert
+        if ($LASTEXITCODE -eq 0) { exit 1 } else { $global:LASTEXITCODE = 0 }
       shell: pwsh
