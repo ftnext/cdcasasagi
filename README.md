@@ -15,21 +15,30 @@ uv tool install cdcasasagi
 
 ## Usage
 
-Preview what will be written to `claude_desktop_config.json`:
+The `add` and `import` commands default to **preview mode** (no files are modified). Pass `--write` to apply changes.
+For full option details, run `cdcasasagi <command> --help`.
+
+### add
+
+Add a single MCP server entry:
 
 ```
-cdcasasagi add https://developers.openai.com/mcp --name openai-developer-docs
+cdcasasagi add https://developers.openai.com/mcp
 ```
 
-This shows a unified diff of the proposed change. No files are modified.
+This shows a unified diff of the proposed change. Pass `--write` to apply:
 
-Apply the change:
+```
+cdcasasagi add https://developers.openai.com/mcp --write
+```
+
+A server name is automatically derived from the URL hostname (e.g. `developers` for the URL above). Use `--name` to specify a custom name:
 
 ```
 cdcasasagi add https://developers.openai.com/mcp --name openai-developer-docs --write
 ```
 
-This writes the following entry to your Claude Desktop config:
+The written entry looks like this:
 
 ```json
 {
@@ -46,13 +55,37 @@ This writes the following entry to your Claude Desktop config:
 }
 ```
 
-The `--name` flag is optional. If omitted, a name is automatically derived from the URL hostname (e.g. `developers` for the URL above).
+### import
 
-### Options
+Add multiple entries at once from a JSONL file:
 
-| Option | Description |
-|---|---|
-| `--name` | Key name for the `mcpServers` entry. Auto-derived from URL if omitted. |
-| `--transport` | Transport type passed to mcp-proxy. Default: `streamablehttp`. |
-| `--force` | Overwrite an existing entry with the same name. |
-| `--write` | Actually write to the config file. Without this flag, only a preview is shown. |
+```
+cdcasasagi import servers.jsonl
+```
+
+Each line is a JSON object with a required `url` key and optional `name` / `transport` keys:
+
+```jsonl
+{"url": "https://developers.openai.com/mcp", "name": "openai-developer-docs"}
+{"url": "https://example.com/mcp"}
+```
+
+Stdin is also supported:
+
+```
+cat servers.jsonl | cdcasasagi import -
+```
+
+### revert
+
+Restore the config from the `.bak` backup created by the last `--write`:
+
+```
+cdcasasagi revert
+```
+
+### version
+
+```
+cdcasasagi version
+```
