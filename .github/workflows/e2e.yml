@@ -218,16 +218,12 @@ jobs:
         print('OK: import backup + merge correct')
         '@ $CONFIG
       shell: pwsh
-    - name: "import: conflict without --force fails"
+    - name: "import: conflict + force"
       run: |
         $JSONL_CONFLICT = "$env:RUNNER_TEMP\conflict.jsonl"
         Set-Content -Path $JSONL_CONFLICT -Value '{"url": "https://mcp.notion.com/mcp", "transport": "sse"}' -Encoding utf8NoBOM
         cdcasasagi import $JSONL_CONFLICT --write
         if ($LASTEXITCODE -eq 0) { exit 1 } else { $global:LASTEXITCODE = 0 }
-      shell: pwsh
-    - name: "import: conflict with --force succeeds"
-      run: |
-        $JSONL_CONFLICT = "$env:RUNNER_TEMP\conflict.jsonl"
         cdcasasagi import $JSONL_CONFLICT --force --write
       shell: pwsh
 
