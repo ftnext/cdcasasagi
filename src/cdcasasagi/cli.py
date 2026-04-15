@@ -72,8 +72,8 @@ def add(
     entry = desktop_config.build_entry(proxy_path, transport, url)
 
     try:
-        merged = desktop_config.merge_entry(current_config, name, entry, force)
-    except desktop_config.EntryExistsError as e:
+        merged = desktop_config.merge_entry(current_config, name, entry, force, url=url)
+    except (desktop_config.EntryExistsError, desktop_config.DuplicateUrlError) as e:
         typer.echo(str(e), err=True)
         raise typer.Exit(code=1)
 
