@@ -158,6 +158,28 @@ class TestAddErrors:
         assert "my-notion" in data["mcpServers"]
         assert "notion" not in data["mcpServers"]
 
+    def test_duplicate_url_force_removes_all(self, config_env):
+        config_file, fake_proxy = config_env
+        url = "https://mcp.notion.com/mcp"
+        entry = {
+            "command": str(fake_proxy),
+            "args": ["--transport", "streamablehttp", url],
+        }
+        config_file.write_text(
+            json.dumps(
+                {"mcpServers": {"notion-a": entry, "notion-b": entry, "other": {}}}
+            )
+        )
+        result = runner.invoke(
+            app, ["add", url, "--name", "notion", "--force", "--write"]
+        )
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert "notion" in data["mcpServers"]
+        assert "notion-a" not in data["mcpServers"]
+        assert "notion-b" not in data["mcpServers"]
+        assert "other" in data["mcpServers"]
+
     def test_invalid_json_config(self, config_env):
         config_file, _ = config_env
         config_file.write_text("not json")

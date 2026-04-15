@@ -78,13 +78,14 @@ def load_backup(path: Path) -> dict[str, Any]:
         ) from e
 
 
-def find_entry_name_by_url(config: dict[str, Any], url: str) -> str | None:
-    """Return the name of the entry whose args end with *url*, or ``None``."""
+def find_entry_names_by_url(config: dict[str, Any], url: str) -> list[str]:
+    """Return names of all entries whose args end with *url*."""
+    names: list[str] = []
     for name, entry in config.get("mcpServers", {}).items():
         args = entry.get("args", [])
         if args and args[-1] == url:
-            return name
-    return None
+            names.append(name)
+    return names
 
 
 def build_entry(mcp_proxy_path: Path, transport: str, url: str) -> dict[str, Any]:
@@ -107,13 +108,14 @@ def merge_entry(
         config["mcpServers"] = {}
 
     if url is not None:
-        existing = find_entry_name_by_url(config, url)
-        if existing is not None and existing != name:
+        others = [n for n in find_entry_names_by_url(config, url) if n != name]
+        if others:
             if not force:
                 raise DuplicateUrlError(
-                    f'URL already configured as "{existing}". Use --force to overwrite'
+                    f'URL already configured as "{others[0]}". Use --force to overwrite'
                 )
-            del config["mcpServers"][existing]
+            for n in others:
+                del config["mcpServers"][n]
 
     if name in config["mcpServers"] and not force:
         raise EntryExistsError(f'"{name}" already exists. Use --force to overwrite')
