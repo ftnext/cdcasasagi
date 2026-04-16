@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from cdcasasagi.output import (
+    doctor_message,
     format_diff,
     import_preview_message,
     import_write_message,
@@ -239,3 +240,53 @@ class TestImportWriteMessage:
             file_existed=False,
         )
         assert "1 entry" in msg
+
+
+class TestDoctorMessage:
+    def test_all_pass(self):
+        results = [
+            ("mcp-proxy", True, "/usr/local/bin/mcp-proxy"),
+            ("Config file", True, "/tmp/config.json"),
+            ("Config directory", True, "/tmp"),
+        ]
+        msg = doctor_message(results)
+        assert msg.count("[PASS]") == 3
+        assert "[FAIL]" not in msg
+        assert "All checks passed." in msg
+
+    def test_one_failure(self):
+        results = [
+            ("mcp-proxy", True, "/usr/local/bin/mcp-proxy"),
+            ("Config file", False, "not found: /tmp/config.json"),
+            ("Config directory", True, "/tmp"),
+        ]
+        msg = doctor_message(results)
+        assert msg.count("[PASS]") == 2
+        assert msg.count("[FAIL]") == 1
+        assert "1 check failed." in msg
+
+    def test_multiple_failures(self):
+        results = [
+            ("mcp-proxy", False, "not found"),
+            ("Config file", False, "not found: /tmp/config.json"),
+            ("Config directory", False, "not writable: /tmp"),
+        ]
+        msg = doctor_message(results)
+        assert msg.count("[FAIL]") == 3
+        assert "3 checks failed." in msg
+
+    def test_detail_shown(self):
+        results = [
+            ("mcp-proxy", True, "/path/to/mcp-proxy"),
+        ]
+        msg = doctor_message(results)
+        assert "/path/to/mcp-proxy" in msg
+
+    def test_ascii_only(self):
+        results = [
+            ("mcp-proxy", True, "/usr/local/bin/mcp-proxy"),
+            ("Config file", False, "not found: /tmp/config.json"),
+            ("Config directory", True, "/tmp"),
+        ]
+        msg = doctor_message(results)
+        assert msg.isascii()
