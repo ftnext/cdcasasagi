@@ -20,7 +20,7 @@ uv build                                       # Build package
 
 `src/cdcasasagi/` with src layout. Entry point: `cdcasasagi:main` → `cli.app` (Typer).
 
-- `cli.py` — CLI commands: `add`, `import`, `revert`
+- `cli.py` — CLI commands: `add`, `doctor`, `import`, `revert`
 - `desktop_config.py` — Config file I/O, entry merging, import planning, atomic writes with `.bak` backups
 - `mcp_proxy.py` — Locates `mcp-proxy` binary in the same venv
 - `server_name.py` — Derives server name from URL hostname

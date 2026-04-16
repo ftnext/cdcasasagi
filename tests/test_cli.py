@@ -1,4 +1,5 @@
 import json
+import os
 from importlib.metadata import version as pkg_version
 
 import pytest
@@ -28,6 +29,64 @@ class TestVersion:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert result.output.strip() == pkg_version("cdcasasagi")
+
+
+class TestDoctor:
+    def test_all_pass(self, config_env):
+        config_file, fake_proxy = config_env
+        config_file.write_text('{"mcpServers": {}}')
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert result.output.count("[PASS]") == 3
+        assert "[FAIL]" not in result.output
+        assert "All checks passed." in result.output
+
+    def test_mcp_proxy_missing(self, config_env, monkeypatch):
+        config_file, _ = config_env
+        config_file.write_text('{"mcpServers": {}}')
+        # Point sys.executable to a dir without mcp-proxy
+        monkeypatch.setattr(
+            "cdcasasagi.mcp_proxy.sys.executable", "/nonexistent/bin/python"
+        )
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 1
+        assert "[FAIL] mcp-proxy:" in result.output
+        # Other checks still run
+        assert result.output.count("[PASS]") == 2
+
+    def test_config_file_missing(self, config_env):
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 1
+        assert "[FAIL] Config file:" in result.output
+        assert "[PASS] mcp-proxy:" in result.output
+
+    def test_config_dir_not_writable(self, config_env, monkeypatch):
+        config_file, _ = config_env
+        config_file.write_text('{"mcpServers": {}}')
+        original_access = os.access
+
+        def fake_access(path, mode, **kwargs):
+            if mode == os.W_OK:
+                return False
+            return original_access(path, mode, **kwargs)
+
+        monkeypatch.setattr("os.access", fake_access)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 1
+        assert "[FAIL] Config directory:" in result.output
+        assert "not writable" in result.output
+
+    def test_all_checks_run_even_with_failures(self, config_env, monkeypatch):
+        # mcp-proxy missing + config file missing
+        monkeypatch.setattr(
+            "cdcasasagi.mcp_proxy.sys.executable", "/nonexistent/bin/python"
+        )
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 1
+        # All 3 check lines present
+        assert "mcp-proxy:" in result.output
+        assert "Config file:" in result.output
+        assert "Config directory:" in result.output
 
 
 class TestAddPreview:

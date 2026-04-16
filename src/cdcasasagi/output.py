@@ -204,3 +204,19 @@ def import_write_message(
     lines.append(f"{action_text} {entry_word}. Restart Claude Desktop to take effect.")
 
     return "\n".join(lines)
+
+
+def doctor_message(results: list[tuple[str, bool, str]]) -> str:
+    lines: list[str] = []
+    for label, passed, detail in results:
+        tag = "[PASS]" if passed else "[FAIL]"
+        lines.append(f"{tag} {label}: {detail}")
+    lines.append("")
+    fail_count = sum(1 for _, passed, _ in results if not passed)
+    if fail_count == 0:
+        lines.append("All checks passed.")
+    elif fail_count == 1:
+        lines.append("1 check failed. See above for details.")
+    else:
+        lines.append(f"{fail_count} checks failed. See above for details.")
+    return "\n".join(lines)

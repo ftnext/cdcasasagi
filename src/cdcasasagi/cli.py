@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
@@ -23,6 +24,33 @@ def _callback() -> None:
 @app.command()
 def version() -> None:
     typer.echo(_pkg_version("cdcasasagi"))
+
+
+@app.command()
+def doctor() -> None:
+    results: list[tuple[str, bool, str]] = []
+
+    try:
+        proxy_path = mcp_proxy.resolve_path()
+        results.append(("mcp-proxy", True, str(proxy_path)))
+    except mcp_proxy.McpProxyNotFoundError:
+        results.append(("mcp-proxy", False, "not found"))
+
+    cfg_path = desktop_config.config_path()
+    if cfg_path.exists():
+        results.append(("Config file", True, str(cfg_path)))
+    else:
+        results.append(("Config file", False, f"not found: {cfg_path}"))
+
+    cfg_dir = cfg_path.parent
+    if os.access(cfg_dir, os.W_OK):
+        results.append(("Config directory", True, str(cfg_dir)))
+    else:
+        results.append(("Config directory", False, f"not writable: {cfg_dir}"))
+
+    typer.echo(output.doctor_message(results))
+    if not all(passed for _, passed, _ in results):
+        raise typer.Exit(code=1)
 
 
 def _validate_url(url: str) -> None:
