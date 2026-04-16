@@ -37,7 +37,7 @@ def doctor() -> None:
         results.append(("mcp-proxy", False, "not found"))
 
     cfg_path = desktop_config.config_path()
-    if cfg_path.exists():
+    if cfg_path.is_file():
         results.append(("Config file", True, str(cfg_path)))
     else:
         results.append(("Config file", False, f"not found: {cfg_path}"))
