@@ -206,6 +206,35 @@ def import_write_message(
     return "\n".join(lines)
 
 
+def validate_ok_message(
+    source: str,
+    entry_count: int,
+    resolved: list[tuple[str, str, str]],
+) -> str:
+    entry_word = "entry" if entry_count == 1 else "entries"
+    lines: list[str] = [f"Valid: {source} ({entry_count} {entry_word})", ""]
+    max_name = max((len(n) for n, _, _ in resolved), default=0)
+    for name, url, _transport in resolved:
+        lines.append(f"  {name.ljust(max_name)}  {url}")
+    return "\n".join(lines)
+
+
+def validate_error_message(
+    source: str,
+    entry_count: int,
+    errors: list[str],
+) -> str:
+    entry_word = "entry" if entry_count == 1 else "entries"
+    error_word = "error" if len(errors) == 1 else "errors"
+    lines: list[str] = [
+        f"Invalid: {source} ({entry_count} {entry_word}, {len(errors)} {error_word})",
+        "",
+    ]
+    for e in errors:
+        lines.append(f"  {e}")
+    return "\n".join(lines)
+
+
 def doctor_message(results: list[tuple[str, bool, str]]) -> str:
     lines: list[str] = []
     for label, passed, detail in results:
