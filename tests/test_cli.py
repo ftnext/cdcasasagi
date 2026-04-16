@@ -615,7 +615,7 @@ class TestValidate:
     def test_single_entry(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "https://mcp.notion.com/mcp"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
         assert "Valid:" in result.output
         assert "1 entry" in result.output
@@ -627,7 +627,7 @@ class TestValidate:
             '{"url": "https://mcp.notion.com/mcp"}\n'
             '{"url": "https://mcp.linear.app/mcp"}\n'
         )
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
         assert "2 entries" in result.output
         assert "notion" in result.output
@@ -636,7 +636,7 @@ class TestValidate:
     def test_explicit_name(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "https://mcp.notion.com/mcp", "name": "my-notion"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
         assert "my-notion" in result.output
 
@@ -645,13 +645,13 @@ class TestValidate:
         f.write_text(
             '{"url": "https://example.com/mcp", "name": "test", "transport": "sse"}\n'
         )
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
 
     def test_blank_lines_skipped(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('\n{"url": "https://mcp.notion.com/mcp"}\n\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
         assert "1 entry" in result.output
 
@@ -664,19 +664,19 @@ class TestValidate:
         )
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "https://mcp.notion.com/mcp"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
 
     def test_does_not_require_config_file(self, validate_env, tmp_path):
         """validate works even when config file does not exist."""
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "https://mcp.notion.com/mcp"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
 
     def test_stdin(self, validate_env):
         result = runner.invoke(
-            app, ["validate", "-"], input='{"url": "https://mcp.notion.com/mcp"}\n'
+            app, ["validate-import", "-"], input='{"url": "https://mcp.notion.com/mcp"}\n'
         )
         assert result.exit_code == 0
         assert "Valid:" in result.output
@@ -687,28 +687,28 @@ class TestValidateErrors:
     def test_invalid_jsonl(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text("not json")
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "Failed to parse JSON Lines" in result.output
 
     def test_empty_file(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text("")
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "no entries" in result.output
 
     def test_blank_lines_only(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text("\n\n\n")
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "no entries" in result.output
 
     def test_missing_url(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"name": "test"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "Invalid:" in result.output
         assert 'entry[0]: missing required key "url"' in result.output
@@ -716,7 +716,7 @@ class TestValidateErrors:
     def test_unknown_keys(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "https://mcp.notion.com/mcp", "typo": "bad"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "unknown keys" in result.output
         assert "typo" in result.output
@@ -724,28 +724,28 @@ class TestValidateErrors:
     def test_entry_not_object(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('"https://mcp.notion.com/mcp"\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "entry[0]: must be an object" in result.output
 
     def test_url_not_string(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": 123}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert '"url" must be a string' in result.output
 
     def test_name_not_string(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "https://mcp.notion.com/mcp", "name": 123}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert '"name" must be a string' in result.output
 
     def test_multiple_schema_errors(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"name": "test"}\n{"url": "https://example.com", "bad": "key"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "entry[0]" in result.output
         assert "entry[1]" in result.output
@@ -753,14 +753,14 @@ class TestValidateErrors:
     def test_invalid_url_scheme(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "ftp://example.com/mcp"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "HTTP(S) URL" in result.output
 
     def test_name_derivation_failure(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"url": "https://localhost/mcp"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert '"name"' in result.output
 
@@ -770,7 +770,7 @@ class TestValidateErrors:
             '{"url": "https://mcp.notion.com/mcp", "name": "test"}\n'
             '{"url": "https://mcp.linear.app/mcp", "name": "test"}\n'
         )
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert 'Duplicate name "test"' in result.output
 
@@ -780,26 +780,26 @@ class TestValidateErrors:
             '{"url": "https://mcp.notion.com/mcp", "name": "a"}\n'
             '{"url": "https://mcp.notion.com/mcp", "name": "b"}\n'
         )
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "Duplicate url" in result.output
 
     def test_file_not_found(self, validate_env, tmp_path):
-        result = runner.invoke(app, ["validate", str(tmp_path / "nonexistent.jsonl")])
+        result = runner.invoke(app, ["validate-import", str(tmp_path / "nonexistent.jsonl")])
         assert result.exit_code == 1
         assert "File not found" in result.output
 
     def test_non_utf8_file(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_bytes(b"\xff\xfe invalid utf-8")
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "Cannot read file" in result.output
 
     def test_error_output_format(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"
         f.write_text('{"name": "test"}\n{"url": "ftp://bad.com"}\n')
-        result = runner.invoke(app, ["validate", str(f)])
+        result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 1
         assert "Invalid:" in result.output
         assert "2 entries" in result.output

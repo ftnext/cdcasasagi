@@ -302,12 +302,12 @@ def _resolve_import_entries(
 
 
 # ------------------------------------------------------------------
-# validate command
+# validate-import command
 # ------------------------------------------------------------------
 
 
-@app.command()
-def validate(
+@app.command(name="validate-import")
+def validate_import(
     file: str = typer.Argument(..., help="Path to JSONL file (use - for stdin)"),
 ) -> None:
     """Validate a JSONL import file without importing."""
