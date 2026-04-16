@@ -228,16 +228,17 @@ def _validate_import_schema(raw_entries: list) -> list[str]:
     return errors
 
 
-def _resolve_import_entries(
+def _collect_entry_errors(
     raw_entries: list[dict],
-    proxy_path: Path,
-) -> list[tuple[str, str, dict]]:
-    """Validate URLs, derive names, build config entries.
+) -> tuple[list[str], list[tuple[str, str, str]]]:
+    """Validate URLs, derive names, check duplicates.  No entry building.
 
-    Returns list of ``(name, url, entry_dict)``.
+    Returns ``(errors, validated)`` where *validated* contains
+    ``(name, url, transport)`` tuples for entries that passed individual
+    validation.
     """
     errors: list[str] = []
-    resolved: list[tuple[str, str, dict]] = []
+    validated: list[tuple[str, str, str]] = []
 
     for i, raw in enumerate(raw_entries):
         url = raw["url"]
@@ -258,37 +259,78 @@ def _resolve_import_entries(
                 continue
 
         transport = raw.get("transport", "streamablehttp")
-        entry = desktop_config.build_entry(proxy_path, transport, url)
-        resolved.append((name, url, entry))
-
-    if errors:
-        typer.echo("\n".join(errors), err=True)
-        raise typer.Exit(code=1)
+        validated.append((name, url, transport))
 
     # Duplicate checks within the input
-    dup_errors: list[str] = []
     names_seen: dict[str, int] = {}
     urls_seen: dict[str, int] = {}
 
-    for i, (name, url, _) in enumerate(resolved):
+    for i, (name, url, _) in enumerate(validated):
         if name in names_seen:
-            dup_errors.append(
+            errors.append(
                 f'Duplicate name "{name}" in entry[{names_seen[name]}] and entry[{i}]'
             )
         else:
             names_seen[name] = i
         if url in urls_seen:
-            dup_errors.append(
+            errors.append(
                 f'Duplicate url "{url}" in entry[{urls_seen[url]}] and entry[{i}]'
             )
         else:
             urls_seen[url] = i
 
-    if dup_errors:
-        typer.echo("\n".join(dup_errors), err=True)
+    return errors, validated
+
+
+def _resolve_import_entries(
+    raw_entries: list[dict],
+    proxy_path: Path,
+) -> list[tuple[str, str, dict]]:
+    """Validate URLs, derive names, build config entries.
+
+    Returns list of ``(name, url, entry_dict)``.
+    """
+    errors, validated = _collect_entry_errors(raw_entries)
+    if errors:
+        typer.echo("\n".join(errors), err=True)
         raise typer.Exit(code=1)
 
-    return resolved
+    return [
+        (name, url, desktop_config.build_entry(proxy_path, transport, url))
+        for name, url, transport in validated
+    ]
+
+
+# ------------------------------------------------------------------
+# validate command
+# ------------------------------------------------------------------
+
+
+@app.command()
+def validate(
+    file: str = typer.Argument(..., help="Path to JSONL file (use - for stdin)"),
+) -> None:
+    """Validate a JSONL import file without importing."""
+    raw_entries, source_label = _parse_import_file(file)
+
+    schema_errors = _validate_import_schema(raw_entries)
+
+    if not schema_errors:
+        entry_errors, validated = _collect_entry_errors(raw_entries)
+    else:
+        entry_errors = []
+        validated = []
+
+    all_errors = schema_errors + entry_errors
+
+    if all_errors:
+        typer.echo(
+            output.validate_error_message(source_label, len(raw_entries), all_errors),
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    typer.echo(output.validate_ok_message(source_label, len(raw_entries), validated))
 
 
 # ------------------------------------------------------------------
