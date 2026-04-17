@@ -10,3 +10,5 @@ reports
 # Gauge - python compiled files
 *.pyc
 
+# Configure project root .gitignore
+!*.spec
