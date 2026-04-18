@@ -76,6 +76,25 @@ Stdin is also supported:
 cat servers.jsonl | cdcasasagi import -
 ```
 
+### validate-import
+
+Validate a JSONL file without importing:
+
+```
+cdcasasagi validate-import servers.jsonl
+```
+
+Paste JSONL from stdin instead of preparing a file. When reading from stdin, the validated content is also saved to `./mcp-servers.jsonl` so you can hand it to `import`:
+
+```
+cdcasasagi validate-import -
+# Paste JSONL, then press Ctrl+D (Ctrl+Z on Windows)
+
+cdcasasagi import ./mcp-servers.jsonl --write
+```
+
+Use `--output` (`-o`) to save to a different path. An existing file at the target path is overwritten without prompting.
+
 ### revert
 
 Restore the config from the `.bak` backup created by the last `--write`:

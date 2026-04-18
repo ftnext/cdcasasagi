@@ -150,8 +150,8 @@ def revert() -> None:
 # ------------------------------------------------------------------
 
 
-def _parse_import_file(file_path: str) -> tuple[list, str]:
-    """Read and parse import JSONL.  Returns ``(data, source_label)``."""
+def _parse_import_file(file_path: str) -> tuple[list, str, str]:
+    """Read and parse import JSONL.  Returns ``(data, source_label, raw_text)``."""
     if file_path == "-":
         try:
             text = sys.stdin.read()
@@ -177,7 +177,7 @@ def _parse_import_file(file_path: str) -> tuple[list, str]:
         typer.echo("Input contains no entries", err=True)
         raise typer.Exit(code=1)
 
-    return data, source_label
+    return data, source_label, text
 
 
 def _parse_jsonl(text: str, source_label: str) -> list:
@@ -309,9 +309,18 @@ def _resolve_import_entries(
 @app.command(name="validate-import")
 def validate_import(
     file: str = typer.Argument(..., help="Path to JSONL file (use - for stdin)"),
+    output_path: Path = typer.Option(
+        Path("mcp-servers.jsonl"),
+        "--output",
+        "-o",
+        help=(
+            "Path to save validated JSONL when reading from stdin "
+            "(default: ./mcp-servers.jsonl; ignored when FILE is a file path)"
+        ),
+    ),
 ) -> None:
-    """Validate a JSONL import file without importing."""
-    raw_entries, source_label = _parse_import_file(file)
+    """Validate a JSONL import file. When reading from stdin (-), save it as a JSONL file for later 'import'."""
+    raw_entries, source_label, raw_text = _parse_import_file(file)
 
     schema_errors = _validate_import_schema(raw_entries)
 
@@ -330,7 +339,20 @@ def validate_import(
         )
         raise typer.Exit(code=1)
 
-    typer.echo(output.validate_ok_message(source_label, len(raw_entries), validated))
+    saved_path: Path | None = None
+    if file == "-":
+        try:
+            output_path.write_text(raw_text, encoding="utf-8")
+        except OSError as e:
+            typer.echo(f"Cannot write output file: {output_path}\n{e}", err=True)
+            raise typer.Exit(code=1)
+        saved_path = output_path
+
+    typer.echo(
+        output.validate_ok_message(
+            source_label, len(raw_entries), validated, saved_path
+        )
+    )
 
 
 # ------------------------------------------------------------------
@@ -346,7 +368,7 @@ def import_cmd(
     verbose: bool = typer.Option(False, help="Show full diff in preview"),
 ) -> None:
     # Phase 1: Validation
-    raw_entries, source_label = _parse_import_file(file)
+    raw_entries, source_label, _ = _parse_import_file(file)
 
     try:
         proxy_path = mcp_proxy.resolve_path()
