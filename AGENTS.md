@@ -57,3 +57,4 @@ Tests use `pytest` with `typer.testing.CliRunner`. The `config_env` fixture sets
 ## Conventions
 
 - Feature specs are written as detailed GitHub issues (see #1, #4). New commands should follow the same level of specification.
+- Write all documentation in English, whether it targets human developers or coding agents.
