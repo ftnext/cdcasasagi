@@ -150,11 +150,33 @@ def revert() -> None:
 # ------------------------------------------------------------------
 
 
+def _read_stdin_jsonl() -> str:
+    """Read JSONL from stdin.
+
+    When stdin is a TTY (interactive paste), stop at the first blank line so
+    a single extra Enter after paste finishes input. Otherwise (piped), read
+    to EOF as usual.
+    """
+    if not sys.stdin.isatty():
+        return sys.stdin.read()
+
+    typer.echo(
+        "Paste JSONL, then press Enter on a blank line to finish (or Ctrl+D / Ctrl+Z):",
+        err=True,
+    )
+    lines: list[str] = []
+    for line in sys.stdin:
+        if line.strip() == "":
+            break
+        lines.append(line)
+    return "".join(lines)
+
+
 def _parse_import_file(file_path: str) -> tuple[list, str, str]:
     """Read and parse import JSONL.  Returns ``(data, source_label, raw_text)``."""
     if file_path == "-":
         try:
-            text = sys.stdin.read()
+            text = _read_stdin_jsonl()
         except UnicodeDecodeError as e:
             typer.echo(f"Cannot read stdin: {e}", err=True)
             raise typer.Exit(code=1)
