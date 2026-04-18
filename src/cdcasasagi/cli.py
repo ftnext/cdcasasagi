@@ -160,9 +160,11 @@ def _read_stdin_jsonl() -> str:
     if not sys.stdin.isatty():
         return sys.stdin.read()
 
-    typer.echo(
-        "Paste JSONL, then press Enter on a blank line to finish (or Ctrl+D / Ctrl+Z):",
+    typer.secho(
+        "Paste JSONL, then press Enter on a blank line to finish "
+        "(or Ctrl+D on macOS / Ctrl+Z on Windows):",
         err=True,
+        fg=typer.colors.CYAN,
     )
     lines: list[str] = []
     for line in sys.stdin:
