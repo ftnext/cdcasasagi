@@ -3,7 +3,7 @@ from __future__ import annotations
 from getgauge.python import data_store, step
 
 
-@step("プレビューが表示される")
+@step("A preview is shown")
 def assert_preview_shown():
     result = data_store.scenario["last_result"]
     assert result.returncode == 0, (

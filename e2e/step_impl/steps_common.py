@@ -31,7 +31,7 @@ def _guard_against_overwriting_real_config():
     )
 
 
-@step("MCPサーバ設定なしでClaude Desktopが使われている")
+@step("Claude Desktop is used with no MCP server entries")
 def given_claude_desktop_without_mcp_servers():
     _guard_against_overwriting_real_config()
     path = config_path()
@@ -40,7 +40,7 @@ def given_claude_desktop_without_mcp_servers():
     data_store.scenario["initial_config"] = _INITIAL_CONFIG
 
 
-@step("cdcasasagiで<args>を実行する")
+@step("Run cdcasasagi <args>")
 def run_cdcasasagi(args):
     # Invoke the CLI via the same interpreter that imported cdcasasagi above,
     # so the E2E always exercises the code in this checkout (not whatever
@@ -50,7 +50,7 @@ def run_cdcasasagi(args):
     data_store.scenario["last_result"] = result
 
 
-@step("設定ファイルは変更されていない")
+@step("The config file is unchanged")
 def assert_config_unchanged():
     initial = data_store.scenario["initial_config"]
     current = config_path().read_text(encoding="utf-8")

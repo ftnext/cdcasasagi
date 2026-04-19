@@ -1,10 +1,10 @@
 # cdcasasagi add
 
-MCPサーバをClaude Desktopの設定に追加する `cdcasasagi add` のE2E
+E2E for `cdcasasagi add`, which adds an MCP server entry to the Claude Desktop config
 
-## プレビューが表示される
+## A preview is shown
 
-* MCPサーバ設定なしでClaude Desktopが使われている
-* cdcasasagiで"add https://mcp.notion.com/mcp"を実行する
-* プレビューが表示される
-* 設定ファイルは変更されていない
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp"
+* A preview is shown
+* The config file is unchanged
