@@ -394,13 +394,30 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     # Phase 2: Planning
-    entries_for_plan = [(name, entry) for name, _url, entry in resolved]
-    plan = desktop_config.plan_import(current_config, entries_for_plan)
+    plan = desktop_config.plan_import(current_config, resolved)
 
-    plan_for_output: list[tuple[str, str, str]] = [
-        (name, action, url)
-        for (name, action, _entry), (_n, url, _e) in zip(plan, resolved)
-    ]
+    # Build plan_for_output by simulating apply_import row by row so `replaces`
+    # reflects the state each row will actually see (earlier rows may have
+    # already deleted or rewritten entries this row would otherwise claim).
+    working = json.loads(json.dumps(current_config))
+    if "mcpServers" not in working:
+        working["mcpServers"] = {}
+
+    plan_for_output: list[tuple[str, str, str, list[str]]] = []
+    for (name, action, entry), (_n, url, _e) in zip(plan, resolved):
+        replaces: list[str] = []
+        if action == "conflict":
+            replaces = [
+                n
+                for n in desktop_config.find_entry_names_by_url(working, url)
+                if n != name
+            ]
+        plan_for_output.append((name, action, url, replaces))
+
+        if action == "add" or (action == "conflict" and force):
+            for r in replaces:
+                del working["mcpServers"][r]
+            working["mcpServers"][name] = entry
 
     conflicts = [name for name, action, _ in plan if action == "conflict"]
     if conflicts and not force:

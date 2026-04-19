@@ -36,3 +36,31 @@ entry would be classified as "identical", not "conflict").
    |https://developers.openai.com/mcp|
 * "notion,developers" entries are written to the config file
 * The transport of "notion" in the config file is "streamablehttp"
+
+## A different name for an existing URL is a conflict without --force
+
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* "notion" entry is written to the config file
+* Pipe JSONL to cdcasasagi "import - --write"
+
+   |url                              |name     |
+   |---------------------------------|---------|
+   |https://mcp.notion.com/mcp       |my-notion|
+   |https://developers.openai.com/mcp|         |
+* The last command fails
+* The config file is unchanged since the last write
+
+## --force --write replaces the existing URL entry under the new name
+
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* "notion" entry is written to the config file
+* Pipe JSONL to cdcasasagi "import - --force --write"
+
+   |url                              |name     |
+   |---------------------------------|---------|
+   |https://mcp.notion.com/mcp       |my-notion|
+   |https://developers.openai.com/mcp|         |
+* "my-notion,developers" entries are written to the config file
+* "notion" entry does not exist in the config file
