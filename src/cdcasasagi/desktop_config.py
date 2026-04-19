@@ -88,6 +88,24 @@ def find_entry_names_by_url(config: dict[str, Any], url: str) -> list[str]:
     return names
 
 
+def list_mcp_proxy_entries(config: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return ``(name, url)`` for every entry whose command basename is mcp-proxy.
+
+    Entries with unexpected ``args`` shape are skipped.
+    """
+    result: list[tuple[str, str]] = []
+    for name, entry in config.get("mcpServers", {}).items():
+        cmd = entry.get("command", "")
+        if Path(cmd).name not in {"mcp-proxy", "mcp-proxy.exe"}:
+            continue
+        args = entry.get("args", [])
+        if len(args) < 3 or args[0] != "--transport":
+            continue
+        result.append((name, args[-1]))
+    result.sort(key=lambda x: x[0])
+    return result
+
+
 def build_entry(mcp_proxy_path: Path, transport: str, url: str) -> dict[str, Any]:
     return {
         "command": str(mcp_proxy_path),

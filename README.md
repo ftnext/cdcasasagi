@@ -82,6 +82,16 @@ cdcasasagi import - --write
 # (Ctrl+D / Ctrl+Z also works)
 ```
 
+### list
+
+Show cdcasasagi-managed MCP servers in the config:
+
+```
+cdcasasagi list
+```
+
+Output is `name : url`, one entry per line, sorted by name. Only entries whose `command` is `mcp-proxy` (or `mcp-proxy.exe` on Windows) are shown.
+
 ### validate-import
 
 Validate a JSONL file's schema without importing. This command never writes any files.

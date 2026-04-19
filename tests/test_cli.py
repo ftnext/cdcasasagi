@@ -90,6 +90,128 @@ class TestDoctor:
         assert "Config directory:" in result.output
 
 
+class TestList:
+    def test_lists_entries_alphabetically(self, config_env):
+        config_file, fake_proxy = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://mcp.notion.com/mcp",
+                            ],
+                        },
+                        "developers": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://developers.openai.com/mcp",
+                            ],
+                        },
+                    }
+                }
+            )
+        )
+        result = runner.invoke(app, ["list"])
+        assert result.exit_code == 0
+        assert "developers" in result.output
+        assert "notion" in result.output
+        assert "https://mcp.notion.com/mcp" in result.output
+        assert "https://developers.openai.com/mcp" in result.output
+        # alphabetical: developers before notion
+        assert result.output.index("developers") < result.output.index("notion")
+        assert f"Target: {config_file}" in result.output
+
+    def test_empty_servers(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text('{"mcpServers": {}}')
+        result = runner.invoke(app, ["list"])
+        assert result.exit_code == 0
+        assert "No mcp-proxy MCP servers configured." in result.output
+        assert f"Target: {config_file}" in result.output
+
+    def test_no_config_file(self, config_env):
+        config_file, _ = config_env
+        assert not config_file.exists()
+        result = runner.invoke(app, ["list"])
+        assert result.exit_code == 0
+        assert "No mcp-proxy MCP servers configured." in result.output
+
+    def test_filters_non_mcp_proxy_entries(self, config_env):
+        config_file, fake_proxy = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://mcp.notion.com/mcp",
+                            ],
+                        },
+                        "other": {
+                            "command": "/usr/bin/some-other-tool",
+                            "args": ["--whatever"],
+                        },
+                    }
+                }
+            )
+        )
+        result = runner.invoke(app, ["list"])
+        assert result.exit_code == 0
+        assert "notion" in result.output
+        assert "https://mcp.notion.com/mcp" in result.output
+        assert "other" not in result.output
+        assert "some-other-tool" not in result.output
+
+    def test_skips_malformed_args(self, config_env):
+        config_file, fake_proxy = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "broken": {
+                            "command": str(fake_proxy),
+                            "args": [],
+                        },
+                        "wrong-flag": {
+                            "command": str(fake_proxy),
+                            "args": ["--other", "x", "https://example.com/mcp"],
+                        },
+                        "ok": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://example.com/mcp",
+                            ],
+                        },
+                    }
+                }
+            )
+        )
+        result = runner.invoke(app, ["list"])
+        assert result.exit_code == 0
+        assert "ok" in result.output
+        assert "https://example.com/mcp" in result.output
+        assert "broken" not in result.output
+        assert "wrong-flag" not in result.output
+
+    def test_corrupt_config(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text("not json at all")
+        result = runner.invoke(app, ["list"])
+        assert result.exit_code == 1
+        assert "Failed to parse JSON config file" in result.output
+
+
 class TestAddPreview:
     def test_preview_derived_name(self, config_env):
         config_file, _ = config_env

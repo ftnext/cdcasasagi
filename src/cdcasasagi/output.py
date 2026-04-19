@@ -259,6 +259,16 @@ def validate_error_message(
     return "\n".join(lines)
 
 
+def list_message(config_path: Path, servers: list[tuple[str, str]]) -> str:
+    if not servers:
+        return f"No mcp-proxy MCP servers configured.\nTarget: {config_path}"
+    max_name = max(len(n) for n, _ in servers)
+    lines = [f"Target: {config_path}", ""]
+    for name, url in servers:
+        lines.append(f"  {name.ljust(max_name)} : {url}")
+    return "\n".join(lines)
+
+
 def doctor_message(results: list[tuple[str, bool, str]]) -> str:
     lines: list[str] = []
     for label, passed, detail in results:
