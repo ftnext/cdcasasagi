@@ -1,6 +1,6 @@
 [project]
 name = "cdcasasagi"
-version = "0.4.0"
+version = "0.5.0"
 description = "鵲 - Bridge Claude Desktop to Streamable HTTP MCP servers via mcp-proxy "
 authors = [
     { name = "ftnext", email = "takuyafjp+develop@gmail.com" }
