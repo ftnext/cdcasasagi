@@ -3,6 +3,7 @@ import os
 from importlib.metadata import version as pkg_version
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from cdcasasagi.cli import app
@@ -763,6 +764,46 @@ class TestValidate:
         )
         monkeypatch.setattr("cdcasasagi.cli.sys.stdin", FakeStdin(text))
         assert _read_stdin_jsonl() == text
+
+    def test_no_color_env_strips_ansi_from_prompt(self, monkeypatch, capsys):
+        """NO_COLOR=<non-empty> must suppress ANSI escape codes in the prompt."""
+        import io
+
+        from cdcasasagi.cli import _read_stdin_jsonl
+
+        class FakeStdin(io.StringIO):
+            def isatty(self):
+                return True
+
+        monkeypatch.setenv("NO_COLOR", "1")
+        monkeypatch.setattr("cdcasasagi.cli.sys.stdin", FakeStdin(""))
+        _read_stdin_jsonl()
+        captured = capsys.readouterr()
+        assert "\x1b[" not in captured.err
+        assert "Paste JSONL" in captured.err
+
+    def test_no_color_empty_string_keeps_color_path(self, monkeypatch):
+        """NO_COLOR="" (empty) is treated as unset per the no-color.org spec."""
+        import io
+
+        from cdcasasagi.cli import _read_stdin_jsonl
+
+        class FakeStdin(io.StringIO):
+            def isatty(self):
+                return True
+
+        captured_fg: list = []
+        original_secho = typer.secho
+
+        def fake_secho(*args, **kwargs):
+            captured_fg.append(kwargs.get("fg"))
+            return original_secho(*args, **kwargs)
+
+        monkeypatch.setenv("NO_COLOR", "")
+        monkeypatch.setattr("cdcasasagi.cli.typer.secho", fake_secho)
+        monkeypatch.setattr("cdcasasagi.cli.sys.stdin", FakeStdin(""))
+        _read_stdin_jsonl()
+        assert captured_fg == [typer.colors.CYAN]
 
 
 class TestValidateErrors:

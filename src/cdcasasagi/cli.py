@@ -160,11 +160,12 @@ def _read_stdin_jsonl() -> str:
     if not sys.stdin.isatty():
         return sys.stdin.read()
 
+    fg = None if os.environ.get("NO_COLOR") else typer.colors.CYAN
     typer.secho(
         "Paste JSONL, then press Enter on a blank line to finish "
         "(or Ctrl+D on macOS / Ctrl+Z on Windows):",
         err=True,
-        fg=typer.colors.CYAN,
+        fg=fg,
     )
     lines: list[str] = []
     for line in sys.stdin:
