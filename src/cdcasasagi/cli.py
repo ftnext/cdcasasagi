@@ -133,6 +133,33 @@ def add(
 
 
 @app.command()
+def delete(
+    url: str = typer.Argument(..., help="URL of the mcpServers entry to remove"),
+    write: bool = typer.Option(False, help="Actually write to the file"),
+) -> None:
+    cfg_path = desktop_config.config_path()
+
+    try:
+        current_config = desktop_config.load_config(cfg_path)
+    except desktop_config.ConfigError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        updated, removed = desktop_config.remove_entries_by_url(current_config, url)
+    except desktop_config.EntryNotFoundError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
+
+    if not write:
+        diff_text = output.format_diff(current_config, updated)
+        typer.echo(output.delete_preview_message(url, removed, cfg_path, diff_text))
+    else:
+        desktop_config.write_config(cfg_path, updated)
+        typer.echo(output.delete_write_message(url, removed, cfg_path))
+
+
+@app.command()
 def revert() -> None:
     cfg_path = desktop_config.config_path()
 

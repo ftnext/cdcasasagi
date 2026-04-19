@@ -55,6 +55,22 @@ The written entry looks like this:
 }
 ```
 
+### delete
+
+Remove an entry from the Claude Desktop config by URL:
+
+```
+cdcasasagi delete https://mcp.notion.com/mcp
+```
+
+This shows a unified diff of the proposed removal. Pass `--write` to apply:
+
+```
+cdcasasagi delete https://mcp.notion.com/mcp --write
+```
+
+Only entries added by cdcasasagi (whose `command` is `mcp-proxy`) are removed. Hand-added entries that happen to share a URL are left alone.
+
 ### import
 
 Add multiple entries at once from a JSONL file:
