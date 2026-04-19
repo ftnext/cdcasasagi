@@ -37,21 +37,31 @@ backup (mirrors `add_write.spec`).
 
 ## A hand-added entry that shares the URL is left alone
 
+The hand-added entry deliberately mirrors the mcp-proxy args shape (same
+`--transport`, same URL) so only the `command` basename check distinguishes
+it from a managed entry. A regression that dropped that check would cause
+the hand-added entry to be removed, and this scenario would catch it.
+
 * Claude Desktop's config has the following mcpServers entries
    |name       |command  |args                                                 |
    |-----------|---------|-----------------------------------------------------|
    |notion     |mcp-proxy|--transport,streamablehttp,https://mcp.notion.com/mcp|
-   |notion-hand|node     |/path/to/notion-hand.js                              |
+   |notion-hand|node     |--transport,streamablehttp,https://mcp.notion.com/mcp|
 * Run cdcasasagi "delete https://mcp.notion.com/mcp --write"
 * The last command succeeds
 * "notion-hand" entry is written to the config file
 
 ## delete fails when only a hand-added entry matches the URL
 
+Same principle as the previous scenario: the hand-added entry's args exactly
+match what `delete` looks for, so only the `command` basename check prevents
+the match. Without a managed entry, `delete` must fail with
+`EntryNotFoundError` rather than fall through to the hand-added one.
+
 * Claude Desktop's config has the following mcpServers entries
-   |name       |command|args                   |
-   |-----------|-------|-----------------------|
-   |notion-hand|node   |/path/to/notion-hand.js|
+   |name       |command|args                                                 |
+   |-----------|-------|-----------------------------------------------------|
+   |notion-hand|node   |--transport,streamablehttp,https://mcp.notion.com/mcp|
 * Run cdcasasagi "delete https://mcp.notion.com/mcp"
 * The last command fails
 * stderr contains "No cdcasasagi-managed entry found"
