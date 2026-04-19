@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 
 from getgauge.python import data_store, step
 
@@ -41,7 +42,10 @@ def given_claude_desktop_without_mcp_servers():
 
 @step("cdcasasagiで<args>を実行する")
 def run_cdcasasagi(args):
-    cmd = ["cdcasasagi"] + shlex.split(args)
+    # Invoke the CLI via the same interpreter that imported cdcasasagi above,
+    # so the E2E always exercises the code in this checkout (not whatever
+    # `cdcasasagi` happens to be first on PATH).
+    cmd = [sys.executable, "-m", "cdcasasagi"] + shlex.split(args)
     result = subprocess.run(cmd, capture_output=True, text=True)
     data_store.scenario["last_result"] = result
 
