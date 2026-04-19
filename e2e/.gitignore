@@ -10,5 +10,10 @@ reports
 # Gauge - python compiled files
 *.pyc
 
+# Re-include Gauge env/ dir (parent .gitignore ignores env/ as Python venv convention)
+!env/
+# Local-only env properties (e.g. CLAUDE_DESKTOP_CONFIG override)
+env/default/local.properties
+
 # Configure project root .gitignore
 !*.spec

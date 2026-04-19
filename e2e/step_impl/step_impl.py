@@ -1,38 +1,70 @@
-from getgauge.python import step, before_scenario, Messages
+from __future__ import annotations
 
-vowels = ["a", "e", "i", "o", "u"]
+import os
+import shlex
+import subprocess
+import sys
 
+from getgauge.python import data_store, step
 
-def number_of_vowels(word):
-    return len([elem for elem in list(word) if elem in vowels])
+from cdcasasagi.desktop_config import config_path
 
-
-# --------------------------
-# Gauge step implementations
-# --------------------------
-
-@step("The word <word> has <number> vowels.")
-def assert_no_of_vowels_in(word, number):
-    assert str(number) == str(number_of_vowels(word))
+_INITIAL_CONFIG = "{}"
 
 
-@step("Vowels in English language are <vowels>.")
-def assert_default_vowels(given_vowels):
-    Messages.write_message("Given vowels are {0}".format(given_vowels))
-    assert given_vowels == "".join(vowels)
+def _guard_against_overwriting_real_config():
+    """Refuse to run when we might clobber the developer's real Claude Desktop config.
+
+    In GitHub Actions the default config path is safe to use (the runner has no
+    pre-existing config). Locally, developers must opt in by setting
+    ``CLAUDE_DESKTOP_CONFIG`` (typically via ``e2e/env/default/local.properties``).
+    """
+    if os.environ.get("CLAUDE_DESKTOP_CONFIG"):
+        return
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return
+    raise RuntimeError(
+        "Refusing to run: CLAUDE_DESKTOP_CONFIG is not set and this does not "
+        "look like a GitHub Actions run. Set CLAUDE_DESKTOP_CONFIG to a "
+        "throwaway path (e.g. via e2e/env/default/local.properties) to avoid "
+        "overwriting your real Claude Desktop config."
+    )
 
 
-@step("Almost all words have vowels <table>")
-def assert_words_vowel_count(table):
-    actual = [str(number_of_vowels(word)) for word in table.get_column_values_with_name("Word")]
-    expected = [str(count) for count in table.get_column_values_with_name("Vowel Count")]
-    assert expected == actual
+@step("MCPサーバ設定なしでClaude Desktopが使われている")
+def given_claude_desktop_without_mcp_servers():
+    _guard_against_overwriting_real_config()
+    path = config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_INITIAL_CONFIG, encoding="utf-8")
+    data_store.scenario["initial_config"] = _INITIAL_CONFIG
 
 
-# ---------------
-# Execution Hooks
-# ---------------
+@step("cdcasasagiで<args>を実行する")
+def run_cdcasasagi(args):
+    # Invoke the CLI via the same interpreter that imported cdcasasagi above,
+    # so the E2E always exercises the code in this checkout (not whatever
+    # `cdcasasagi` happens to be first on PATH).
+    cmd = [sys.executable, "-m", "cdcasasagi"] + shlex.split(args)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    data_store.scenario["last_result"] = result
 
-@before_scenario()
-def before_scenario_hook():
-    assert "".join(vowels) == "aeiou"
+
+@step("プレビューが表示される")
+def assert_preview_shown():
+    result = data_store.scenario["last_result"]
+    assert result.returncode == 0, (
+        f"exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    assert "This is a preview" in result.stdout, (
+        f"preview marker not found in stdout:\n{result.stdout}"
+    )
+
+
+@step("設定ファイルは変更されていない")
+def assert_config_unchanged():
+    initial = data_store.scenario["initial_config"]
+    current = config_path().read_text(encoding="utf-8")
+    assert current == initial, (
+        f"config file changed.\nexpected:\n{initial!r}\nactual:\n{current!r}"
+    )
