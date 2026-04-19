@@ -55,6 +55,20 @@ The written entry looks like this:
 }
 ```
 
+### delete
+
+Remove an entry from the Claude Desktop config by name:
+
+```
+cdcasasagi delete notion
+```
+
+This shows a unified diff of the proposed removal. Pass `--write` to apply:
+
+```
+cdcasasagi delete notion --write
+```
+
 ### import
 
 Add multiple entries at once from a JSONL file:

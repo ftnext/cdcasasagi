@@ -435,6 +435,143 @@ class TestRevert:
         assert "Removed:" in result.output
 
 
+class TestDelete:
+    def test_preview_shows_diff(self, config_env):
+        config_file, fake_proxy = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://mcp.notion.com/mcp",
+                            ],
+                        }
+                    }
+                }
+            )
+        )
+        before = config_file.read_text()
+        result = runner.invoke(app, ["delete", "notion"])
+        assert result.exit_code == 0
+        assert f"Target: {config_file}" in result.output
+        assert "--- current" in result.output
+        assert "+++ proposed" in result.output
+        assert '-    "notion"' in result.output
+        assert 'Will remove "notion".' in result.output
+        assert "--write" in result.output
+        assert config_file.read_text() == before
+
+    def test_write_removes_entry(self, config_env):
+        config_file, fake_proxy = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://mcp.notion.com/mcp",
+                            ],
+                        },
+                        "linear": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://mcp.linear.app/mcp",
+                            ],
+                        },
+                    },
+                    "other": "keep",
+                }
+            )
+        )
+        result = runner.invoke(app, ["delete", "notion", "--write"])
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert "notion" not in data["mcpServers"]
+        assert "linear" in data["mcpServers"]
+        assert data["other"] == "keep"
+        assert config_file.with_suffix(".json.bak").exists()
+        assert 'Removed "notion".' in result.output
+        assert "Restart Claude Desktop" in result.output
+
+    def test_entry_not_found(self, config_env):
+        config_file, fake_proxy = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": {
+                            "command": str(fake_proxy),
+                            "args": [
+                                "--transport",
+                                "streamablehttp",
+                                "https://mcp.notion.com/mcp",
+                            ],
+                        }
+                    }
+                }
+            )
+        )
+        before = config_file.read_text()
+        result = runner.invoke(app, ["delete", "foo"])
+        assert result.exit_code == 1
+        assert '"foo" not found' in result.output
+        assert config_file.read_text() == before
+
+    def test_no_config_file(self, config_env):
+        config_file, _ = config_env
+        assert not config_file.exists()
+        result = runner.invoke(app, ["delete", "notion"])
+        assert result.exit_code == 1
+        assert '"notion" not found' in result.output
+
+    def test_corrupt_config(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text("not json at all")
+        result = runner.invoke(app, ["delete", "notion"])
+        assert result.exit_code == 1
+        assert "Failed to parse JSON config file" in result.output
+
+    def test_delete_then_revert_restores(self, config_env):
+        config_file, fake_proxy = config_env
+        original = {
+            "mcpServers": {
+                "notion": {
+                    "command": str(fake_proxy),
+                    "args": [
+                        "--transport",
+                        "streamablehttp",
+                        "https://mcp.notion.com/mcp",
+                    ],
+                },
+                "linear": {
+                    "command": str(fake_proxy),
+                    "args": [
+                        "--transport",
+                        "streamablehttp",
+                        "https://mcp.linear.app/mcp",
+                    ],
+                },
+            }
+        }
+        config_file.write_text(json.dumps(original))
+        result = runner.invoke(app, ["delete", "notion", "--write"])
+        assert result.exit_code == 0
+        result = runner.invoke(app, ["revert"])
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert "notion" in data["mcpServers"]
+        assert "linear" in data["mcpServers"]
+
+
 class TestImportPreview:
     def test_preview_basic(self, config_env, tmp_path):
         config_file, _ = config_env

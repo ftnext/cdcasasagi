@@ -17,6 +17,10 @@ class EntryExistsError(Exception):
     pass
 
 
+class EntryNotFoundError(Exception):
+    pass
+
+
 class BackupNotFoundError(Exception):
     pass
 
@@ -139,6 +143,15 @@ def merge_entry(
         raise EntryExistsError(f'"{name}" already exists. Use --force to overwrite')
 
     config["mcpServers"][name] = entry
+    return config
+
+
+def remove_entry(config: dict[str, Any], name: str) -> dict[str, Any]:
+    config = json.loads(json.dumps(config))  # deep copy
+    servers = config.setdefault("mcpServers", {})
+    if name not in servers:
+        raise EntryNotFoundError(f'"{name}" not found in mcpServers')
+    del servers[name]
     return config
 
 

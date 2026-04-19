@@ -8,6 +8,7 @@ from cdcasasagi.desktop_config import (
     BackupNotFoundError,
     ConfigError,
     EntryExistsError,
+    EntryNotFoundError,
     apply_import,
     backup_path,
     build_entry,
@@ -17,6 +18,7 @@ from cdcasasagi.desktop_config import (
     load_config,
     merge_entry,
     plan_import,
+    remove_entry,
     revert_config,
     write_config,
 )
@@ -124,6 +126,41 @@ class TestMergeEntry:
         entry = {"command": "x", "args": []}
         merge_entry(config, "notion", entry, force=False)
         assert "notion" not in config["mcpServers"]
+
+
+class TestRemoveEntry:
+    def test_removes_existing_entry(self):
+        config = {
+            "mcpServers": {"notion": {"command": "x"}, "linear": {"command": "y"}}
+        }
+        result = remove_entry(config, "notion")
+        assert "notion" not in result["mcpServers"]
+        assert "linear" in result["mcpServers"]
+
+    def test_preserves_unrelated_top_level_keys(self):
+        config = {"mcpServers": {"notion": {"command": "x"}}, "other": "keep"}
+        result = remove_entry(config, "notion")
+        assert result["other"] == "keep"
+
+    def test_missing_name_raises(self):
+        config = {"mcpServers": {"notion": {"command": "x"}}}
+        with pytest.raises(EntryNotFoundError):
+            remove_entry(config, "linear")
+
+    def test_missing_mcpservers_raises(self):
+        config = {"other": "value"}
+        with pytest.raises(EntryNotFoundError):
+            remove_entry(config, "notion")
+
+    def test_empty_mcpservers_raises(self):
+        config = {"mcpServers": {}}
+        with pytest.raises(EntryNotFoundError):
+            remove_entry(config, "notion")
+
+    def test_does_not_mutate_original(self):
+        config = {"mcpServers": {"notion": {"command": "x"}}}
+        remove_entry(config, "notion")
+        assert "notion" in config["mcpServers"]
 
 
 class TestWriteConfig:
