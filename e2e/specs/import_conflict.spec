@@ -35,3 +35,4 @@ entry would be classified as "identical", not "conflict").
    |https://mcp.notion.com/mcp       |
    |https://developers.openai.com/mcp|
 * "notion,developers" entries are written to the config file
+* The transport of "notion" in the config file is "streamablehttp"
