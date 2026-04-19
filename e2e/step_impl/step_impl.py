@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
 
@@ -10,8 +11,28 @@ from cdcasasagi.desktop_config import config_path
 _INITIAL_CONFIG = "{}"
 
 
+def _guard_against_overwriting_real_config():
+    """Refuse to run when we might clobber the developer's real Claude Desktop config.
+
+    In GitHub Actions the default config path is safe to use (the runner has no
+    pre-existing config). Locally, developers must opt in by setting
+    ``CLAUDE_DESKTOP_CONFIG`` (typically via ``e2e/env/default/local.properties``).
+    """
+    if os.environ.get("CLAUDE_DESKTOP_CONFIG"):
+        return
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return
+    raise RuntimeError(
+        "Refusing to run: CLAUDE_DESKTOP_CONFIG is not set and this does not "
+        "look like a GitHub Actions run. Set CLAUDE_DESKTOP_CONFIG to a "
+        "throwaway path (e.g. via e2e/env/default/local.properties) to avoid "
+        "overwriting your real Claude Desktop config."
+    )
+
+
 @step("MCPサーバ設定なしでClaude Desktopが使われている")
 def given_claude_desktop_without_mcp_servers():
+    _guard_against_overwriting_real_config()
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_INITIAL_CONFIG, encoding="utf-8")
