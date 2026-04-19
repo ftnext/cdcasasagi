@@ -507,6 +507,45 @@ class TestImportConflicts:
         assert "my-notion" in data["mcpServers"]
         assert "notion" not in data["mcpServers"]
 
+    def test_same_name_conflict_reports_url_alias_removal(self, config_env, tmp_path):
+        """Same-name conflict whose URL is held by another entry: the plan output
+        must mention the aliased entry that --force will delete."""
+        config_file, fake_proxy = config_env
+        notion_url = "https://mcp.notion.com/mcp"
+        other_url = "https://other.example.com/mcp"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": {
+                            "command": str(fake_proxy),
+                            "args": ["--transport", "streamablehttp", notion_url],
+                        },
+                        "other": {
+                            "command": str(fake_proxy),
+                            "args": ["--transport", "streamablehttp", other_url],
+                        },
+                    }
+                }
+            )
+        )
+        # Re-target "notion" to the URL currently held by "other".
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text(f'{{"url": "{other_url}", "name": "notion"}}\n')
+
+        # Preview: warns that "other" would be removed alongside the notion overwrite.
+        result = runner.invoke(app, ["import", str(input_file)])
+        assert result.exit_code == 1
+        assert '"other"' in result.output
+
+        # --force --write: plan announces the removal and config actually loses "other".
+        result = runner.invoke(app, ["import", str(input_file), "--force", "--write"])
+        assert result.exit_code == 0
+        assert 'replaced "other"' in result.output
+        data = json.loads(config_file.read_text())
+        assert "other" not in data["mcpServers"]
+        assert data["mcpServers"]["notion"]["args"][-1] == other_url
+
     def test_url_alias_conflict_all_or_nothing(self, config_env, tmp_path):
         """Mixed input: URL alias conflict + new URL — without --force nothing is written."""
         config_file, fake_proxy = config_env

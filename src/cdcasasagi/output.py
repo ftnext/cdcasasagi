@@ -95,11 +95,15 @@ def write_message(
     return "\n".join(lines)
 
 
+def _format_replaces(replaces: list[str]) -> str:
+    return ", ".join(f'"{n}"' for n in replaces)
+
+
 def import_preview_message(
     config_path: Path,
     source: str,
     entry_count: int,
-    plan: list[tuple[str, str, str, str | None]],
+    plan: list[tuple[str, str, str, list[str]]],
     force: bool,
     verbose_diff: str | None = None,
 ) -> str:
@@ -126,15 +130,20 @@ def import_preview_message(
             if force:
                 if replaces:
                     lines.append(
-                        f'  ~ {padded}  {url}  (overwrite, replaces "{replaces}")'
+                        f"  ~ {padded}  {url}  "
+                        f"(overwrite, replaces {_format_replaces(replaces)})"
                     )
                 else:
                     lines.append(f"  ~ {padded}  {url}  (overwrite)")
                 counts["overwrite"] += 1
             else:
                 if replaces:
+                    label = (
+                        "URL already under" if len(replaces) == 1 else "URL shared with"
+                    )
                     lines.append(
-                        f'  ! {padded}  {url}  (URL already under "{replaces}", '
+                        f"  ! {padded}  {url}  "
+                        f"({label} {_format_replaces(replaces)}, "
                         "use --force to overwrite)"
                     )
                 else:
@@ -174,7 +183,7 @@ def import_preview_message(
 def import_write_message(
     config_path: Path,
     source: str,
-    plan: list[tuple[str, str, str, str | None]],
+    plan: list[tuple[str, str, str, list[str]]],
     force: bool,
     file_existed: bool,
 ) -> str:
@@ -195,7 +204,7 @@ def import_write_message(
             lines.append(f"  = {name} (unchanged)")
         elif action == "conflict" and force:
             if replaces:
-                lines.append(f'  ~ {name} (replaced "{replaces}")')
+                lines.append(f"  ~ {name} (replaced {_format_replaces(replaces)})")
             else:
                 lines.append(f"  ~ {name}")
             overwrite_count += 1

@@ -89,8 +89,8 @@ def test_revert_message_empty_diff():
 class TestImportPreviewMessage:
     def test_basic_adds(self):
         plan = [
-            ("notion", "add", "https://mcp.notion.com/mcp", None),
-            ("linear", "add", "https://mcp.linear.app/mcp", None),
+            ("notion", "add", "https://mcp.notion.com/mcp", []),
+            ("linear", "add", "https://mcp.linear.app/mcp", []),
         ]
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 2, plan, force=False
@@ -104,7 +104,7 @@ class TestImportPreviewMessage:
         assert "--write" in msg
 
     def test_singular_entry(self):
-        plan = [("notion", "add", "https://mcp.notion.com/mcp", None)]
+        plan = [("notion", "add", "https://mcp.notion.com/mcp", [])]
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 1, plan, force=False
         )
@@ -112,8 +112,8 @@ class TestImportPreviewMessage:
 
     def test_with_identical(self):
         plan = [
-            ("notion", "add", "https://mcp.notion.com/mcp", None),
-            ("linear", "identical", "https://mcp.linear.app/mcp", None),
+            ("notion", "add", "https://mcp.notion.com/mcp", []),
+            ("linear", "identical", "https://mcp.linear.app/mcp", []),
         ]
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 2, plan, force=False
@@ -125,8 +125,8 @@ class TestImportPreviewMessage:
 
     def test_conflict_without_force(self):
         plan = [
-            ("notion", "add", "https://mcp.notion.com/mcp", None),
-            ("existing", "conflict", "https://example.com/mcp", None),
+            ("notion", "add", "https://mcp.notion.com/mcp", []),
+            ("existing", "conflict", "https://example.com/mcp", []),
         ]
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 2, plan, force=False
@@ -139,7 +139,7 @@ class TestImportPreviewMessage:
 
     def test_url_alias_conflict_without_force(self):
         plan = [
-            ("my-notion", "conflict", "https://mcp.notion.com/mcp", "notion"),
+            ("my-notion", "conflict", "https://mcp.notion.com/mcp", ["notion"]),
         ]
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 1, plan, force=False
@@ -149,10 +149,22 @@ class TestImportPreviewMessage:
         assert "--force" in msg
         assert "Error:" in msg
 
+    def test_same_name_conflict_also_drops_aliased_url_without_force(self):
+        """Same-name conflict whose URL is already used by another entry also
+        warns about the aliased entry that would be removed."""
+        plan = [
+            ("notion", "conflict", "https://mcp.notion.com/mcp", ["other"]),
+        ]
+        msg = import_preview_message(
+            Path("/tmp/config.json"), "servers.json", 1, plan, force=False
+        )
+        assert "  ! notion" in msg
+        assert 'URL already under "other"' in msg
+
     def test_conflict_with_force(self):
         plan = [
-            ("notion", "add", "https://mcp.notion.com/mcp", None),
-            ("existing", "conflict", "https://example.com/mcp", None),
+            ("notion", "add", "https://mcp.notion.com/mcp", []),
+            ("existing", "conflict", "https://example.com/mcp", []),
         ]
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 2, plan, force=True
@@ -165,7 +177,7 @@ class TestImportPreviewMessage:
 
     def test_url_alias_conflict_with_force(self):
         plan = [
-            ("my-notion", "conflict", "https://mcp.notion.com/mcp", "notion"),
+            ("my-notion", "conflict", "https://mcp.notion.com/mcp", ["notion"]),
         ]
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 1, plan, force=True
@@ -173,8 +185,18 @@ class TestImportPreviewMessage:
         assert "  ~ my-notion" in msg
         assert 'replaces "notion"' in msg
 
+    def test_same_name_conflict_with_force_lists_all_removed_aliases(self):
+        plan = [
+            ("notion", "conflict", "https://mcp.notion.com/mcp", ["alt1", "alt2"]),
+        ]
+        msg = import_preview_message(
+            Path("/tmp/config.json"), "servers.json", 1, plan, force=True
+        )
+        assert "  ~ notion" in msg
+        assert 'replaces "alt1", "alt2"' in msg
+
     def test_verbose_diff(self):
-        plan = [("notion", "add", "https://mcp.notion.com/mcp", None)]
+        plan = [("notion", "add", "https://mcp.notion.com/mcp", [])]
         msg = import_preview_message(
             Path("/tmp/config.json"),
             "servers.json",
@@ -190,8 +212,8 @@ class TestImportPreviewMessage:
 class TestImportWriteMessage:
     def test_basic_adds(self):
         plan = [
-            ("notion", "add", "https://mcp.notion.com/mcp", None),
-            ("linear", "add", "https://mcp.linear.app/mcp", None),
+            ("notion", "add", "https://mcp.notion.com/mcp", []),
+            ("linear", "add", "https://mcp.linear.app/mcp", []),
         ]
         msg = import_write_message(
             Path("/tmp/config.json"),
@@ -211,7 +233,7 @@ class TestImportWriteMessage:
         assert "Backup:" not in msg
 
     def test_with_backup(self):
-        plan = [("notion", "add", "https://mcp.notion.com/mcp", None)]
+        plan = [("notion", "add", "https://mcp.notion.com/mcp", [])]
         msg = import_write_message(
             Path("/tmp/config.json"),
             "servers.json",
@@ -223,8 +245,8 @@ class TestImportWriteMessage:
 
     def test_with_overwrites(self):
         plan = [
-            ("notion", "add", "https://mcp.notion.com/mcp", None),
-            ("existing", "conflict", "https://example.com/mcp", None),
+            ("notion", "add", "https://mcp.notion.com/mcp", []),
+            ("existing", "conflict", "https://example.com/mcp", []),
         ]
         msg = import_write_message(
             Path("/tmp/config.json"),
@@ -240,7 +262,7 @@ class TestImportWriteMessage:
 
     def test_with_url_alias_overwrite(self):
         plan = [
-            ("my-notion", "conflict", "https://mcp.notion.com/mcp", "notion"),
+            ("my-notion", "conflict", "https://mcp.notion.com/mcp", ["notion"]),
         ]
         msg = import_write_message(
             Path("/tmp/config.json"),
@@ -252,10 +274,24 @@ class TestImportWriteMessage:
         assert "  ~ my-notion" in msg
         assert 'replaced "notion"' in msg
 
+    def test_same_name_conflict_reports_removed_alias(self):
+        plan = [
+            ("notion", "conflict", "https://mcp.notion.com/mcp", ["other"]),
+        ]
+        msg = import_write_message(
+            Path("/tmp/config.json"),
+            "servers.json",
+            plan,
+            force=True,
+            file_existed=True,
+        )
+        assert "  ~ notion" in msg
+        assert 'replaced "other"' in msg
+
     def test_with_identical(self):
         plan = [
-            ("notion", "add", "https://mcp.notion.com/mcp", None),
-            ("linear", "identical", "https://mcp.linear.app/mcp", None),
+            ("notion", "add", "https://mcp.notion.com/mcp", []),
+            ("linear", "identical", "https://mcp.linear.app/mcp", []),
         ]
         msg = import_write_message(
             Path("/tmp/config.json"),
@@ -267,7 +303,7 @@ class TestImportWriteMessage:
         assert "  = linear (unchanged)" in msg
 
     def test_single_entry_word(self):
-        plan = [("notion", "add", "https://mcp.notion.com/mcp", None)]
+        plan = [("notion", "add", "https://mcp.notion.com/mcp", [])]
         msg = import_write_message(
             Path("/tmp/config.json"),
             "servers.json",
