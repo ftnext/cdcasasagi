@@ -7,10 +7,11 @@ import sys
 from getgauge.python import data_store, step
 
 
-@step("Run cdcasasagi <args> with stdin <stdin>")
-def run_cdcasasagi_with_stdin(args, stdin):
+@step("Run cdcasasagi <args> with the following raw lines piped to stdin <table>")
+def run_cdcasasagi_with_raw_lines(args, table):
+    lines = table.get_column_values_with_name("line")
+    stdin_input = "\n".join(lines) + "\n"
     cmd = [sys.executable, "-m", "cdcasasagi"] + shlex.split(args)
-    stdin_input = stdin if stdin.endswith("\n") else stdin + "\n"
     result = subprocess.run(cmd, input=stdin_input, capture_output=True, text=True)
     data_store.scenario["last_result"] = result
 
