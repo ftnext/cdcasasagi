@@ -546,6 +546,53 @@ class TestImportConflicts:
         assert "other" not in data["mcpServers"]
         assert data["mcpServers"]["notion"]["args"][-1] == other_url
 
+    def test_replaces_reflects_serial_apply(self, config_env, tmp_path):
+        """Row N's `replaces` is computed against the state after rows 0..N-1 apply.
+
+        Starting from ``{a:url1, b:url2}`` and importing ``a->url2, c->url1``:
+        row 1 overwrites ``a`` and removes ``b`` (replaces=["b"]). Row 2 then
+        adds ``c`` — by this point ``a`` already holds ``url2``, so ``c`` does
+        not actually remove anything and must not claim to replace ``a``.
+        """
+        config_file, fake_proxy = config_env
+        url1 = "https://one.example.com/mcp"
+        url2 = "https://two.example.com/mcp"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "a": {
+                            "command": str(fake_proxy),
+                            "args": ["--transport", "streamablehttp", url1],
+                        },
+                        "b": {
+                            "command": str(fake_proxy),
+                            "args": ["--transport", "streamablehttp", url2],
+                        },
+                    }
+                }
+            )
+        )
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text(
+            f'{{"url": "{url2}", "name": "a"}}\n{{"url": "{url1}", "name": "c"}}\n'
+        )
+
+        # --force preview: "a" replaces "b"; "c" must not claim to replace "a".
+        result = runner.invoke(app, ["import", str(input_file), "--force"])
+        assert result.exit_code == 0
+        assert 'replaces "b"' in result.output
+        assert 'replaces "a"' not in result.output
+
+        # --force --write: post-apply, "a" holds url2, "c" holds url1, "b" gone.
+        result = runner.invoke(app, ["import", str(input_file), "--force", "--write"])
+        assert result.exit_code == 0
+        assert 'replaced "a"' not in result.output
+        data = json.loads(config_file.read_text())
+        assert data["mcpServers"]["a"]["args"][-1] == url2
+        assert data["mcpServers"]["c"]["args"][-1] == url1
+        assert "b" not in data["mcpServers"]
+
     def test_url_alias_conflict_all_or_nothing(self, config_env, tmp_path):
         """Mixed input: URL alias conflict + new URL — without --force nothing is written."""
         config_file, fake_proxy = config_env
