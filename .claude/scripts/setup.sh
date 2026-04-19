@@ -13,7 +13,7 @@ bun x gh-setup-hooks
 
 if [ ! -d "${PROJECT_DIR}/.venv" ]; then
     echo "Create Python virtual environment..."
-    uv sync --group dev
+    uv sync --group dev --frozen
 fi
 
 echo "Setup complete!"

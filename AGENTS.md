@@ -7,13 +7,13 @@ This file provides guidance to coding agents when working with code in this repo
 ## Build & Test Commands
 
 ```bash
-uv sync                                        # Install dependencies
-uv run pytest                                  # Run all tests
-uv run pytest tests/test_cli.py                # Run a single test file
-uv run pytest tests/test_cli.py -k test_name   # Run a single test by name
-uv run ruff check --fix src/ tests/            # Lint
-uv run ruff format src/ tests/                 # Format
-uv build                                       # Build package
+uv sync --frozen                                         # Install dependencies
+uv run --no-sync pytest                                  # Run all tests
+uv run --no-sync pytest tests/test_cli.py                # Run a single test file
+uv run --no-sync pytest tests/test_cli.py -k test_name   # Run a single test by name
+uv run --no-sync ruff check --fix src/ tests/            # Lint
+uv run --no-sync ruff format src/ tests/                 # Format
+uv build                                                 # Build package
 ```
 
 ## Architecture
@@ -31,9 +31,9 @@ uv build                                       # Build package
 After implementation is complete, run the following in order:
 
 ```bash
-uv run ruff format src/ tests/
-uv run ruff check --fix src/ tests/
-uv run pytest
+uv run --no-sync ruff format src/ tests/
+uv run --no-sync ruff check --fix src/ tests/
+uv run --no-sync pytest
 ```
 
 ## Testing

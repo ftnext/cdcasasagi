@@ -26,7 +26,7 @@ jobs:
         gauge-version: '1.6.28'
         gauge-plugins: python, html-report, screenshot
     - name: Install dependencies
-      run: uv sync --group dev
+      run: uv sync --group dev --frozen
     - name: Run Gauge E2E
       working-directory: e2e
-      run: uv run gauge run specs
+      run: uv run --no-sync gauge run specs
