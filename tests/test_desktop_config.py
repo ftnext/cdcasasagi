@@ -213,86 +213,143 @@ class TestRevertConfig:
         assert p.read_text().endswith("\n")
 
 
+def _entry(url: str, command: str = "x") -> dict:
+    return {"command": command, "args": ["--transport", "streamablehttp", url]}
+
+
 class TestPlanImport:
     def test_all_new(self):
         config = {"mcpServers": {}}
-        entries = [("a", {"command": "x"}), ("b", {"command": "y"})]
+        a_entry = _entry("https://a.example/mcp")
+        b_entry = _entry("https://b.example/mcp")
+        entries = [
+            ("a", "https://a.example/mcp", a_entry),
+            ("b", "https://b.example/mcp", b_entry),
+        ]
         plan = plan_import(config, entries)
         assert plan == [
-            ("a", "add", {"command": "x"}),
-            ("b", "add", {"command": "y"}),
+            ("a", "add", a_entry),
+            ("b", "add", b_entry),
         ]
 
     def test_identical(self):
-        config = {"mcpServers": {"a": {"command": "x"}}}
-        entries = [("a", {"command": "x"})]
+        a_entry = _entry("https://a.example/mcp")
+        config = {"mcpServers": {"a": a_entry}}
+        entries = [("a", "https://a.example/mcp", a_entry)]
         plan = plan_import(config, entries)
-        assert plan == [("a", "identical", {"command": "x"})]
+        assert plan == [("a", "identical", a_entry)]
 
-    def test_conflict(self):
-        config = {"mcpServers": {"a": {"command": "old"}}}
-        entries = [("a", {"command": "new"})]
+    def test_conflict_same_name(self):
+        old = _entry("https://a.example/mcp", command="old")
+        new = _entry("https://a.example/mcp", command="new")
+        config = {"mcpServers": {"a": old}}
+        entries = [("a", "https://a.example/mcp", new)]
         plan = plan_import(config, entries)
-        assert plan == [("a", "conflict", {"command": "new"})]
+        assert plan == [("a", "conflict", new)]
+
+    def test_conflict_url_under_different_name(self):
+        """Same URL, new name → conflict (not add)."""
+        url = "https://mcp.notion.com/mcp"
+        existing = _entry(url)
+        incoming = _entry(url, command="different")
+        config = {"mcpServers": {"notion": existing}}
+        entries = [("my-notion", url, incoming)]
+        plan = plan_import(config, entries)
+        assert plan == [("my-notion", "conflict", incoming)]
 
     def test_mixed(self):
-        config = {"mcpServers": {"existing": {"command": "x"}}}
+        existing = _entry("https://existing.example/mcp")
+        incoming_new = _entry("https://new.example/mcp")
+        config = {"mcpServers": {"existing": existing}}
         entries = [
-            ("existing", {"command": "x"}),  # identical
-            ("new", {"command": "y"}),  # add
+            ("existing", "https://existing.example/mcp", existing),  # identical
+            ("new", "https://new.example/mcp", incoming_new),  # add
         ]
         plan = plan_import(config, entries)
         assert plan[0][1] == "identical"
         assert plan[1][1] == "add"
 
     def test_empty_mcpservers(self):
+        e = _entry("https://a.example/mcp")
         config = {"other": "value"}
-        entries = [("a", {"command": "x"})]
+        entries = [("a", "https://a.example/mcp", e)]
         plan = plan_import(config, entries)
-        assert plan == [("a", "add", {"command": "x"})]
+        assert plan == [("a", "add", e)]
 
 
 class TestApplyImport:
     def test_adds_new_entries(self):
         config = {"mcpServers": {}}
-        plan = [("a", "add", {"command": "x"}), ("b", "add", {"command": "y"})]
+        a = _entry("https://a.example/mcp")
+        b = _entry("https://b.example/mcp")
+        plan = [("a", "add", a), ("b", "add", b)]
         result = apply_import(config, plan, force=False)
         assert "a" in result["mcpServers"]
         assert "b" in result["mcpServers"]
 
     def test_skips_identical(self):
-        config = {"mcpServers": {"a": {"command": "x"}}}
-        plan = [("a", "identical", {"command": "x"})]
+        a = _entry("https://a.example/mcp")
+        config = {"mcpServers": {"a": a}}
+        plan = [("a", "identical", a)]
         result = apply_import(config, plan, force=False)
-        assert result["mcpServers"]["a"] == {"command": "x"}
+        assert result["mcpServers"]["a"] == a
 
     def test_skips_conflict_without_force(self):
-        config = {"mcpServers": {"a": {"command": "old"}}}
-        plan = [("a", "conflict", {"command": "new"})]
+        old = _entry("https://a.example/mcp", command="old")
+        new = _entry("https://a.example/mcp", command="new")
+        config = {"mcpServers": {"a": old}}
+        plan = [("a", "conflict", new)]
         result = apply_import(config, plan, force=False)
-        assert result["mcpServers"]["a"] == {"command": "old"}
+        assert result["mcpServers"]["a"] == old
 
     def test_overwrites_conflict_with_force(self):
-        config = {"mcpServers": {"a": {"command": "old"}}}
-        plan = [("a", "conflict", {"command": "new"})]
+        old = _entry("https://a.example/mcp", command="old")
+        new = _entry("https://a.example/mcp", command="new")
+        config = {"mcpServers": {"a": old}}
+        plan = [("a", "conflict", new)]
         result = apply_import(config, plan, force=True)
-        assert result["mcpServers"]["a"] == {"command": "new"}
+        assert result["mcpServers"]["a"] == new
+
+    def test_url_alias_conflict_force_removes_existing_alias(self):
+        """`--force` removes the aliased entry and writes under the new name."""
+        url = "https://mcp.notion.com/mcp"
+        existing = _entry(url)
+        incoming = _entry(url, command="new")
+        config = {"mcpServers": {"notion": existing}}
+        plan = [("my-notion", "conflict", incoming)]
+        result = apply_import(config, plan, force=True)
+        assert "my-notion" in result["mcpServers"]
+        assert "notion" not in result["mcpServers"]
+        assert result["mcpServers"]["my-notion"] == incoming
+
+    def test_url_alias_conflict_without_force_does_not_remove(self):
+        url = "https://mcp.notion.com/mcp"
+        existing = _entry(url)
+        incoming = _entry(url, command="new")
+        config = {"mcpServers": {"notion": existing}}
+        plan = [("my-notion", "conflict", incoming)]
+        result = apply_import(config, plan, force=False)
+        assert "notion" in result["mcpServers"]
+        assert "my-notion" not in result["mcpServers"]
 
     def test_preserves_other_keys(self):
+        e = _entry("https://new.example/mcp")
         config = {"mcpServers": {"old": {"command": "y"}}, "other": "keep"}
-        plan = [("new", "add", {"command": "x"})]
+        plan = [("new", "add", e)]
         result = apply_import(config, plan, force=False)
         assert result["other"] == "keep"
         assert "old" in result["mcpServers"]
 
     def test_does_not_mutate_original(self):
+        e = _entry("https://a.example/mcp")
         config = {"mcpServers": {}}
-        plan = [("a", "add", {"command": "x"})]
+        plan = [("a", "add", e)]
         apply_import(config, plan, force=False)
         assert "a" not in config["mcpServers"]
 
     def test_creates_mcpservers_if_missing(self):
+        e = _entry("https://a.example/mcp")
         config = {"other": "value"}
-        plan = [("a", "add", {"command": "x"})]
+        plan = [("a", "add", e)]
         result = apply_import(config, plan, force=False)
         assert "a" in result["mcpServers"]

@@ -469,6 +469,62 @@ class TestImportConflicts:
         data = json.loads(config_file.read_text())
         assert data["mcpServers"]["notion"]["command"] == str(fake_proxy)
 
+    def test_url_alias_conflict_without_force_aborts(self, config_env, tmp_path):
+        """Same URL under a different name is a conflict; no --force → fail, no write."""
+        config_file, fake_proxy = config_env
+        entry = {
+            "command": str(fake_proxy),
+            "args": ["--transport", "streamablehttp", "https://mcp.notion.com/mcp"],
+        }
+        original = {"mcpServers": {"notion": entry}}
+        config_file.write_text(json.dumps(original))
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text(
+            '{"url": "https://mcp.notion.com/mcp", "name": "my-notion"}\n'
+        )
+        result = runner.invoke(app, ["import", str(input_file), "--write"])
+        assert result.exit_code == 1
+        assert "my-notion" in result.output
+        assert '"notion"' in result.output
+        assert "--force" in result.output
+        assert json.loads(config_file.read_text()) == original
+
+    def test_url_alias_conflict_with_force_replaces(self, config_env, tmp_path):
+        """`--force` removes the existing alias and writes under the new name."""
+        config_file, fake_proxy = config_env
+        entry = {
+            "command": str(fake_proxy),
+            "args": ["--transport", "streamablehttp", "https://mcp.notion.com/mcp"],
+        }
+        config_file.write_text(json.dumps({"mcpServers": {"notion": entry}}))
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text(
+            '{"url": "https://mcp.notion.com/mcp", "name": "my-notion"}\n'
+        )
+        result = runner.invoke(app, ["import", str(input_file), "--force", "--write"])
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert "my-notion" in data["mcpServers"]
+        assert "notion" not in data["mcpServers"]
+
+    def test_url_alias_conflict_all_or_nothing(self, config_env, tmp_path):
+        """Mixed input: URL alias conflict + new URL — without --force nothing is written."""
+        config_file, fake_proxy = config_env
+        entry = {
+            "command": str(fake_proxy),
+            "args": ["--transport", "streamablehttp", "https://mcp.notion.com/mcp"],
+        }
+        original = {"mcpServers": {"notion": entry}}
+        config_file.write_text(json.dumps(original))
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text(
+            '{"url": "https://mcp.notion.com/mcp", "name": "my-notion"}\n'
+            '{"url": "https://developers.openai.com/mcp"}\n'
+        )
+        result = runner.invoke(app, ["import", str(input_file), "--write"])
+        assert result.exit_code == 1
+        assert json.loads(config_file.read_text()) == original
+
     def test_identical_never_conflicts(self, config_env, tmp_path):
         config_file, fake_proxy = config_env
         entry = {

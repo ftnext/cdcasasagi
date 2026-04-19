@@ -126,22 +126,27 @@ def merge_entry(
 
 def plan_import(
     config: dict[str, Any],
-    entries: list[tuple[str, dict[str, Any]]],
+    entries: list[tuple[str, str, dict[str, Any]]],
 ) -> list[tuple[str, str, dict[str, Any]]]:
     """Classify import entries against current config.
 
-    Returns list of ``(name, action, entry)`` where *action* is one of
-    ``'add'``, ``'identical'``, or ``'conflict'``.
+    *entries* is a list of ``(name, url, entry)``. Returns a list of
+    ``(name, action, entry)`` where *action* is one of ``'add'``,
+    ``'identical'``, or ``'conflict'``. A URL that already exists in the
+    config under a different name counts as a conflict.
     """
     servers = config.get("mcpServers", {})
     plan: list[tuple[str, str, dict[str, Any]]] = []
-    for name, entry in entries:
-        if name not in servers:
-            plan.append((name, "add", entry))
-        elif servers[name] == entry:
-            plan.append((name, "identical", entry))
-        else:
+    for name, url, entry in entries:
+        if name in servers:
+            if servers[name] == entry:
+                plan.append((name, "identical", entry))
+            else:
+                plan.append((name, "conflict", entry))
+        elif find_entry_names_by_url(config, url):
             plan.append((name, "conflict", entry))
+        else:
+            plan.append((name, "add", entry))
     return plan
 
 
@@ -150,12 +155,24 @@ def apply_import(
     plan: list[tuple[str, str, dict[str, Any]]],
     force: bool,
 ) -> dict[str, Any]:
-    """Apply an import plan – adds new entries and overwrites conflicts when *force*."""
+    """Apply an import plan – adds new entries and overwrites conflicts when *force*.
+
+    On a URL alias conflict (new name, existing URL under another name),
+    ``--force`` removes the aliased entry before writing the new one.
+    """
     config = json.loads(json.dumps(config))  # deep copy
     if "mcpServers" not in config:
         config["mcpServers"] = {}
     for name, action, entry in plan:
-        if action == "add" or (action == "conflict" and force):
+        if action == "add":
+            config["mcpServers"][name] = entry
+        elif action == "conflict" and force:
+            args = entry.get("args", [])
+            if args:
+                url = args[-1]
+                for other in find_entry_names_by_url(config, url):
+                    if other != name:
+                        del config["mcpServers"][other]
             config["mcpServers"][name] = entry
     return config
 

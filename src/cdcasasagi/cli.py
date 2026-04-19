@@ -394,13 +394,17 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     # Phase 2: Planning
-    entries_for_plan = [(name, entry) for name, _url, entry in resolved]
-    plan = desktop_config.plan_import(current_config, entries_for_plan)
+    plan = desktop_config.plan_import(current_config, resolved)
 
-    plan_for_output: list[tuple[str, str, str]] = [
-        (name, action, url)
-        for (name, action, _entry), (_n, url, _e) in zip(plan, resolved)
-    ]
+    existing_servers = current_config.get("mcpServers", {})
+    plan_for_output: list[tuple[str, str, str, str | None]] = []
+    for (name, action, _entry), (_n, url, _e) in zip(plan, resolved):
+        replaces: str | None = None
+        if action == "conflict" and name not in existing_servers:
+            aliases = desktop_config.find_entry_names_by_url(current_config, url)
+            if aliases:
+                replaces = aliases[0]
+        plan_for_output.append((name, action, url, replaces))
 
     conflicts = [name for name, action, _ in plan if action == "conflict"]
     if conflicts and not force:
