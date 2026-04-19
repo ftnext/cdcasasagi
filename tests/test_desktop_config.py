@@ -410,6 +410,14 @@ class TestListMcpProxyEntries:
                     "command": "/usr/bin/mcp-proxy",
                     "args": ["--other", "x", "https://example.com/mcp"],
                 },
+                "null-args": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": None,
+                },
+                "dict-args": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": {"transport": "streamablehttp"},
+                },
                 "ok": {
                     "command": "/usr/bin/mcp-proxy",
                     "args": [

@@ -99,7 +99,7 @@ def list_mcp_proxy_entries(config: dict[str, Any]) -> list[tuple[str, str]]:
         if Path(cmd).name not in {"mcp-proxy", "mcp-proxy.exe"}:
             continue
         args = entry.get("args", [])
-        if len(args) < 3 or args[0] != "--transport":
+        if not isinstance(args, list) or len(args) < 3 or args[0] != "--transport":
             continue
         result.append((name, args[-1]))
     result.sort(key=lambda x: x[0])
