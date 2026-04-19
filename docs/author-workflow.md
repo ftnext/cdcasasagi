@@ -42,20 +42,18 @@ The baseline flow is:
 
 The stumbling point is step 4. The author typically shares JSONL through chat tools or documentation tools — as *text*, not as an attached file. Asking a non-developer to take that text and save it to a file at a known path (with the right filename, no trailing whitespace, correct line endings) is exactly the kind of friction cdcasasagi is meant to remove.
 
-`validate-import -` exists to close that gap. The non-developer pastes the shared JSONL into `validate-import -`, which both validates it and writes it out to a predictable path (`./mcp-servers.jsonl`). From there, the pre-shared `import --write` command works without any manual file-saving step.
+`import -` closes that gap. The non-developer pastes the shared JSONL directly into `cdcasasagi import - --write` — no intermediate file, no saving step. One copy-paste command, one paste of the JSONL.
 
 So the handoff the author actually sends is:
 
 ```
-cdcasasagi validate-import -
-# paste the JSONL, Ctrl+D
-
-cdcasasagi import ./mcp-servers.jsonl --write
+cdcasasagi import - --write
+# paste the JSONL, Ctrl+D (or blank line)
 ```
 
-Both lines are pure copy-paste for the non-developer; the only keyboard action in between is pasting the JSONL and pressing Ctrl+D.
+The only keyboard action is pasting the JSONL and terminating stdin.
 
-`validate-import` deliberately has no `--write` option. Its role here is "validate + stage a file at a known path", not "mutate the config" — keeping those concerns split is what makes the two-step handoff readable as two pure copy-pastes.
+`validate-import` is the *author's* composition tool. Before sharing the JSONL, the author can paste it into `cdcasasagi validate-import -` locally to confirm schema / URL validity without touching their own config. `validate-import` deliberately has no `--write` option and does not write any files — it is strictly a read-only validator, keeping "validate" and "mutate the config" as separate concerns.
 
 ## Recovery
 
@@ -73,6 +71,6 @@ When the author (or another developer) adds a new command, the questions that fa
 
 - Is this for the author's local composition, or will it be handed to a non-developer as a finalized string?
 - If handed off, can it be expressed as a single copy-paste `--write` command?
-- If it stages state for a later command (like `validate-import -` staging `./mcp-servers.jsonl`), is the staging path predictable enough that the follow-up command can be given as a fixed string?
+- If the command needs input beyond arguments (e.g. JSONL content), can that input be delivered via stdin (`-`) in the same paste-and-done motion, rather than asking the non-developer to stage a file?
 
 Commands that cannot be reduced to a copy-paste string should stay in the author's local composition toolkit rather than being surfaced to non-developers.

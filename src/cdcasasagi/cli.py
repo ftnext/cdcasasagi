@@ -334,18 +334,9 @@ def _resolve_import_entries(
 @app.command(name="validate-import")
 def validate_import(
     file: str = typer.Argument(..., help="Path to JSONL file (use - for stdin)"),
-    output_path: Path = typer.Option(
-        Path("mcp-servers.jsonl"),
-        "--output",
-        "-o",
-        help=(
-            "Path to save validated JSONL when reading from stdin "
-            "(default: ./mcp-servers.jsonl; ignored when FILE is a file path)"
-        ),
-    ),
 ) -> None:
-    """Validate a JSONL import file. When reading from stdin (-), save it as a JSONL file for later 'import'."""
-    raw_entries, source_label, raw_text = _parse_import_file(file)
+    """Validate a JSONL import file. Does not write any files."""
+    raw_entries, source_label, _ = _parse_import_file(file)
 
     schema_errors = _validate_import_schema(raw_entries)
 
@@ -364,20 +355,7 @@ def validate_import(
         )
         raise typer.Exit(code=1)
 
-    saved_path: Path | None = None
-    if file == "-":
-        try:
-            output_path.write_text(raw_text, encoding="utf-8")
-        except OSError as e:
-            typer.echo(f"Cannot write output file: {output_path}\n{e}", err=True)
-            raise typer.Exit(code=1)
-        saved_path = output_path
-
-    typer.echo(
-        output.validate_ok_message(
-            source_label, len(raw_entries), validated, saved_path
-        )
-    )
+    typer.echo(output.validate_ok_message(source_label, len(raw_entries), validated))
 
 
 # ------------------------------------------------------------------

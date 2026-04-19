@@ -421,6 +421,15 @@ class TestImportWrite:
         assert "notion" in data["mcpServers"]
         assert data["other"] == "keep"
 
+    def test_write_from_stdin(self, config_env):
+        config_file, _ = config_env
+        stdin_data = '{"url": "https://mcp.notion.com/mcp"}\n'
+        result = runner.invoke(app, ["import", "-", "--write"], input=stdin_data)
+        assert result.exit_code == 0
+        assert config_file.exists()
+        data = json.loads(config_file.read_text())
+        assert "notion" in data["mcpServers"]
+
     def test_write_all_identical_no_write(self, config_env, tmp_path):
         config_file, fake_proxy = config_env
         entry = {
@@ -676,45 +685,22 @@ class TestValidate:
         result = runner.invoke(app, ["validate-import", str(f)])
         assert result.exit_code == 0
 
-    def test_stdin_saves_to_default_path(self, validate_env, tmp_path):
+    def test_stdin_validates_without_writing_file(self, validate_env, tmp_path):
         jsonl = '{"url": "https://mcp.notion.com/mcp"}\n'
         result = runner.invoke(app, ["validate-import", "-"], input=jsonl)
         assert result.exit_code == 0
         assert "Valid:" in result.output
         assert "stdin" in result.output
-        saved = tmp_path / "mcp-servers.jsonl"
-        assert saved.exists()
-        assert saved.read_text(encoding="utf-8") == jsonl
-        assert "Saved: mcp-servers.jsonl" in result.output
-
-    def test_stdin_output_option(self, validate_env, tmp_path):
-        jsonl = '{"url": "https://mcp.notion.com/mcp"}\n'
-        dest = tmp_path / "custom.jsonl"
-        result = runner.invoke(
-            app, ["validate-import", "-", "--output", str(dest)], input=jsonl
-        )
-        assert result.exit_code == 0
-        assert dest.exists()
-        assert dest.read_text(encoding="utf-8") == jsonl
-        # Default file must NOT be created when --output is specified.
+        assert "Saved:" not in result.output
         assert not (tmp_path / "mcp-servers.jsonl").exists()
 
-    def test_stdin_overwrites_existing_file(self, validate_env, tmp_path):
+    def test_stdin_does_not_touch_existing_file(self, validate_env, tmp_path):
         existing = tmp_path / "mcp-servers.jsonl"
         existing.write_text("old content\n", encoding="utf-8")
         jsonl = '{"url": "https://mcp.notion.com/mcp"}\n'
         result = runner.invoke(app, ["validate-import", "-"], input=jsonl)
         assert result.exit_code == 0
-        assert existing.read_text(encoding="utf-8") == jsonl
-
-    def test_stdin_short_output_flag(self, validate_env, tmp_path):
-        jsonl = '{"url": "https://mcp.notion.com/mcp"}\n'
-        dest = tmp_path / "short.jsonl"
-        result = runner.invoke(
-            app, ["validate-import", "-", "-o", str(dest)], input=jsonl
-        )
-        assert result.exit_code == 0
-        assert dest.read_text(encoding="utf-8") == jsonl
+        assert existing.read_text(encoding="utf-8") == "old content\n"
 
     def test_file_input_does_not_save(self, validate_env, tmp_path):
         f = tmp_path / "servers.jsonl"

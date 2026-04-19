@@ -70,31 +70,35 @@ Each line is a JSON object with a required `url` key and optional `name` / `tran
 {"url": "https://example.com/mcp"}
 ```
 
-Stdin is also supported:
+Stdin is also supported — pipe a file, or pass `-` and paste the JSONL interactively:
 
 ```
 cat servers.jsonl | cdcasasagi import -
 ```
 
+```
+cdcasasagi import - --write
+# Paste JSONL, then press Enter on a blank line to finish
+# (Ctrl+D / Ctrl+Z also works)
+```
+
 ### validate-import
 
-Validate a JSONL file without importing:
+Validate a JSONL file's schema without importing. This command never writes any files.
 
 ```
 cdcasasagi validate-import servers.jsonl
 ```
 
-Paste JSONL from stdin instead of preparing a file. When reading from stdin, the validated content is also saved to `./mcp-servers.jsonl` so you can hand it to `import`:
+Paste JSONL from stdin instead of preparing a file:
 
 ```
 cdcasasagi validate-import -
 # Paste JSONL, then press Enter on a blank line to finish
 # (Ctrl+D / Ctrl+Z also works)
-
-cdcasasagi import ./mcp-servers.jsonl --write
 ```
 
-Use `--output` (`-o`) to save to a different path. An existing file at the target path is overwritten without prompting.
+Once the JSONL validates, feed the same content to `import - --write` to apply it.
 
 ### revert
 
