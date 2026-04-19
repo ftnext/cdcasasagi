@@ -146,13 +146,35 @@ def merge_entry(
     return config
 
 
-def remove_entry(config: dict[str, Any], name: str) -> dict[str, Any]:
+def remove_entries_by_url(
+    config: dict[str, Any], url: str
+) -> tuple[dict[str, Any], list[str]]:
+    """Remove every cdcasasagi-managed entry whose URL matches.
+
+    An entry is considered managed when ``command`` basename is ``mcp-proxy``
+    (or ``mcp-proxy.exe``) and ``args`` starts with ``--transport`` followed
+    by a transport value and the URL -- the same shape written by ``add``
+    and required by ``list_mcp_proxy_entries``. Hand-edited entries that
+    happen to end in *url* are left alone. Raises :class:`EntryNotFoundError`
+    when nothing matches. Returns ``(updated_config, removed_names)``.
+    """
     config = json.loads(json.dumps(config))  # deep copy
     servers = config.setdefault("mcpServers", {})
-    if name not in servers:
-        raise EntryNotFoundError(f'"{name}" not found in mcpServers')
-    del servers[name]
-    return config
+    names: list[str] = []
+    for name, entry in servers.items():
+        cmd = entry.get("command", "")
+        if Path(cmd).name not in {"mcp-proxy", "mcp-proxy.exe"}:
+            continue
+        args = entry.get("args", [])
+        if len(args) < 3 or args[0] != "--transport":
+            continue
+        if args[-1] == url:
+            names.append(name)
+    if not names:
+        raise EntryNotFoundError(f"No cdcasasagi-managed entry found for URL: {url}")
+    for name in names:
+        del servers[name]
+    return config, names
 
 
 def plan_import(

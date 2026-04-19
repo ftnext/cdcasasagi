@@ -18,7 +18,7 @@ from cdcasasagi.desktop_config import (
     load_config,
     merge_entry,
     plan_import,
-    remove_entry,
+    remove_entries_by_url,
     revert_config,
     write_config,
 )
@@ -128,39 +128,107 @@ class TestMergeEntry:
         assert "notion" not in config["mcpServers"]
 
 
-class TestRemoveEntry:
-    def test_removes_existing_entry(self):
+class TestRemoveEntriesByUrl:
+    def _managed(self, url, command="mcp-proxy"):
+        return {"command": command, "args": ["--transport", "streamablehttp", url]}
+
+    def test_removes_matching_managed_entry(self):
+        url = "https://mcp.notion.com/mcp"
         config = {
-            "mcpServers": {"notion": {"command": "x"}, "linear": {"command": "y"}}
+            "mcpServers": {
+                "notion": self._managed(url),
+                "linear": self._managed("https://mcp.linear.app/mcp"),
+            }
         }
-        result = remove_entry(config, "notion")
+        result, removed = remove_entries_by_url(config, url)
+        assert removed == ["notion"]
         assert "notion" not in result["mcpServers"]
         assert "linear" in result["mcpServers"]
 
     def test_preserves_unrelated_top_level_keys(self):
-        config = {"mcpServers": {"notion": {"command": "x"}}, "other": "keep"}
-        result = remove_entry(config, "notion")
+        url = "https://mcp.notion.com/mcp"
+        config = {"mcpServers": {"notion": self._managed(url)}, "other": "keep"}
+        result, _ = remove_entries_by_url(config, url)
         assert result["other"] == "keep"
 
-    def test_missing_name_raises(self):
-        config = {"mcpServers": {"notion": {"command": "x"}}}
+    def test_missing_url_raises(self):
+        config = {"mcpServers": {"notion": self._managed("https://mcp.notion.com/mcp")}}
         with pytest.raises(EntryNotFoundError):
-            remove_entry(config, "linear")
+            remove_entries_by_url(config, "https://other.example.com/mcp")
 
     def test_missing_mcpservers_raises(self):
         config = {"other": "value"}
         with pytest.raises(EntryNotFoundError):
-            remove_entry(config, "notion")
+            remove_entries_by_url(config, "https://mcp.notion.com/mcp")
 
     def test_empty_mcpservers_raises(self):
         config = {"mcpServers": {}}
         with pytest.raises(EntryNotFoundError):
-            remove_entry(config, "notion")
+            remove_entries_by_url(config, "https://mcp.notion.com/mcp")
 
     def test_does_not_mutate_original(self):
-        config = {"mcpServers": {"notion": {"command": "x"}}}
-        remove_entry(config, "notion")
+        url = "https://mcp.notion.com/mcp"
+        config = {"mcpServers": {"notion": self._managed(url)}}
+        remove_entries_by_url(config, url)
         assert "notion" in config["mcpServers"]
+
+    def test_ignores_non_mcp_proxy_command(self):
+        url = "https://mcp.notion.com/mcp"
+        config = {
+            "mcpServers": {
+                "impostor": {
+                    "command": "/usr/bin/some-other-tool",
+                    "args": ["--transport", "streamablehttp", url],
+                }
+            }
+        }
+        with pytest.raises(EntryNotFoundError):
+            remove_entries_by_url(config, url)
+        assert "impostor" in config["mcpServers"]
+
+    def test_ignores_malformed_args_shape(self):
+        url = "https://mcp.notion.com/mcp"
+        config = {
+            "mcpServers": {
+                "short": {"command": "mcp-proxy", "args": [url]},
+                "wrong_flag": {
+                    "command": "mcp-proxy",
+                    "args": ["--other", "x", url],
+                },
+            }
+        }
+        with pytest.raises(EntryNotFoundError):
+            remove_entries_by_url(config, url)
+
+    def test_mcp_proxy_exe_command_matches(self):
+        url = "https://mcp.notion.com/mcp"
+        config = {
+            "mcpServers": {
+                "notion": {
+                    "command": "mcp-proxy.exe",
+                    "args": ["--transport", "streamablehttp", url],
+                }
+            }
+        }
+        result, removed = remove_entries_by_url(config, url)
+        assert removed == ["notion"]
+        assert "notion" not in result["mcpServers"]
+
+    def test_removes_all_duplicate_url_managed_entries(self):
+        """Hand-edited config with two managed entries sharing a URL: both go."""
+        url = "https://mcp.notion.com/mcp"
+        config = {
+            "mcpServers": {
+                "notion": self._managed(url),
+                "notion-2": self._managed(url),
+                "other": self._managed("https://other.example.com/mcp"),
+            }
+        }
+        result, removed = remove_entries_by_url(config, url)
+        assert sorted(removed) == ["notion", "notion-2"]
+        assert "notion" not in result["mcpServers"]
+        assert "notion-2" not in result["mcpServers"]
+        assert "other" in result["mcpServers"]
 
 
 class TestWriteConfig:
