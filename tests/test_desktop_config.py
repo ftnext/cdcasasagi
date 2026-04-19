@@ -12,6 +12,7 @@ from cdcasasagi.desktop_config import (
     backup_path,
     build_entry,
     config_path,
+    list_mcp_proxy_entries,
     load_backup,
     load_config,
     merge_entry,
@@ -353,3 +354,90 @@ class TestApplyImport:
         plan = [("a", "add", e)]
         result = apply_import(config, plan, force=False)
         assert "a" in result["mcpServers"]
+
+
+class TestListMcpProxyEntries:
+    def test_empty_config(self):
+        assert list_mcp_proxy_entries({}) == []
+        assert list_mcp_proxy_entries({"mcpServers": {}}) == []
+
+    def test_basename_match_unix(self):
+        config = {
+            "mcpServers": {
+                "notion": {
+                    "command": "/Users/me/.local/bin/mcp-proxy",
+                    "args": ["--transport", "streamablehttp", "https://n.example/mcp"],
+                }
+            }
+        }
+        assert list_mcp_proxy_entries(config) == [("notion", "https://n.example/mcp")]
+
+    def test_basename_match_exe(self):
+        # `.exe` suffix is recognized so Windows configs round-trip.
+        config = {
+            "mcpServers": {
+                "notion": {
+                    "command": "/some/path/mcp-proxy.exe",
+                    "args": ["--transport", "streamablehttp", "https://n.example/mcp"],
+                }
+            }
+        }
+        assert list_mcp_proxy_entries(config) == [("notion", "https://n.example/mcp")]
+
+    def test_filters_non_mcp_proxy(self):
+        config = {
+            "mcpServers": {
+                "notion": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": ["--transport", "streamablehttp", "https://n.example/mcp"],
+                },
+                "other": {
+                    "command": "/usr/bin/some-other-tool",
+                    "args": ["--whatever"],
+                },
+            }
+        }
+        assert list_mcp_proxy_entries(config) == [("notion", "https://n.example/mcp")]
+
+    def test_skips_malformed_args(self):
+        config = {
+            "mcpServers": {
+                "broken": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": [],
+                },
+                "wrong-flag": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": ["--other", "x", "https://example.com/mcp"],
+                },
+                "ok": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": [
+                        "--transport",
+                        "streamablehttp",
+                        "https://example.com/mcp",
+                    ],
+                },
+            }
+        }
+        assert list_mcp_proxy_entries(config) == [("ok", "https://example.com/mcp")]
+
+    def test_sorted_alphabetically(self):
+        config = {
+            "mcpServers": {
+                "zoo": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": ["--transport", "streamablehttp", "https://z.example/mcp"],
+                },
+                "alpha": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": ["--transport", "streamablehttp", "https://a.example/mcp"],
+                },
+                "middle": {
+                    "command": "/usr/bin/mcp-proxy",
+                    "args": ["--transport", "streamablehttp", "https://m.example/mcp"],
+                },
+            }
+        }
+        result = list_mcp_proxy_entries(config)
+        assert [name for name, _ in result] == ["alpha", "middle", "zoo"]

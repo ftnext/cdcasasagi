@@ -5,6 +5,7 @@ from cdcasasagi.output import (
     format_diff,
     import_preview_message,
     import_write_message,
+    list_message,
     preview_message,
     revert_message,
     write_message,
@@ -362,3 +363,46 @@ class TestDoctorMessage:
         ]
         msg = doctor_message(results)
         assert msg.isascii()
+
+
+class TestListMessage:
+    def test_empty(self):
+        msg = list_message(Path("/tmp/config.json"), [])
+        assert "No mcp-proxy MCP servers configured." in msg
+        assert "Target: /tmp/config.json" in msg
+
+    def test_formats_entries(self):
+        servers = [
+            ("notion", "https://mcp.notion.com/mcp"),
+            ("openai-developer-docs", "https://developers.openai.com/mcp"),
+        ]
+        msg = list_message(Path("/tmp/config.json"), servers)
+        assert "Target: /tmp/config.json" in msg
+        assert "notion" in msg
+        assert "https://mcp.notion.com/mcp" in msg
+        assert "openai-developer-docs" in msg
+        assert "https://developers.openai.com/mcp" in msg
+
+    def test_aligns_names(self):
+        servers = [
+            ("a", "https://a.example/mcp"),
+            ("longer-name", "https://b.example/mcp"),
+        ]
+        msg = list_message(Path("/tmp/config.json"), servers)
+        # Both URLs should appear at the same column thanks to ljust padding.
+        lines = [line for line in msg.splitlines() if " : " in line]
+        assert len(lines) == 2
+        url_columns = {line.index(" : ") for line in lines}
+        assert len(url_columns) == 1
+
+    def test_uses_colon_separator(self):
+        servers = [("notion", "https://mcp.notion.com/mcp")]
+        msg = list_message(Path("/tmp/config.json"), servers)
+        assert "notion : https://mcp.notion.com/mcp" in msg
+
+    def test_ascii_only(self):
+        servers = [("notion", "https://mcp.notion.com/mcp")]
+        msg = list_message(Path("/tmp/config.json"), servers)
+        assert msg.isascii()
+        empty = list_message(Path("/tmp/config.json"), [])
+        assert empty.isascii()

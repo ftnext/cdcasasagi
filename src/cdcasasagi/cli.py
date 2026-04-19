@@ -53,6 +53,20 @@ def doctor() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command(name="list")
+def list_cmd() -> None:
+    """List cdcasasagi-managed MCP servers as 'name : url'."""
+    cfg_path = desktop_config.config_path()
+    try:
+        config = desktop_config.load_config(cfg_path)
+    except desktop_config.ConfigError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
+
+    servers = desktop_config.list_mcp_proxy_entries(config)
+    typer.echo(output.list_message(cfg_path, servers))
+
+
 def _validate_url(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
