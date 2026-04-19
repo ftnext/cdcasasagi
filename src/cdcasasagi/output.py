@@ -210,15 +210,12 @@ def validate_ok_message(
     source: str,
     entry_count: int,
     resolved: list[tuple[str, str, str]],
-    saved_path: Path | None = None,
 ) -> str:
     entry_word = "entry" if entry_count == 1 else "entries"
     lines: list[str] = [f"Valid: {source} ({entry_count} {entry_word})", ""]
     max_name = max((len(n) for n, _, _ in resolved), default=0)
     for name, url, _transport in resolved:
         lines.append(f"  {name.ljust(max_name)}  {url}")
-    if saved_path is not None:
-        lines.extend(["", f"Saved: {saved_path}"])
     return "\n".join(lines)
 
 

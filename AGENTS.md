@@ -51,7 +51,7 @@ The goal for layer 2 is *"paste and done"*. This shapes command design:
 
 - Commands intended for developer composition keep the preview-first / `--write`-to-mutate shape.
 - Commands shared with non-developers must be expressible as a single copy-paste string with `--write` already included; the non-developer never sees a preview step.
-- `validate-import` intentionally has no `--write` option: it is the developer's composition tool for validating JSONL shared by the non-developer, and saves to a predictable path so the follow-up `import --write` command can also be handed over as a fixed string. Splitting the two keeps the non-developer path a sequence of pure copy-pastes.
+- `validate-import` intentionally has no `--write` option and never writes any files: it is the developer's read-only composition tool for checking that a JSONL snippet is schema-valid before sharing it. The non-developer handoff is a single `cdcasasagi import - --write` copy-paste into which they paste the JSONL directly — stdin replaces the earlier "stage a file, then import it" two-step.
 
 When adding a new command, decide which layer it serves and whether it participates in the developer-to-non-developer handoff. See `docs/author-workflow.md` for the concrete flow that motivated this model.
 
