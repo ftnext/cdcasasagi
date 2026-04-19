@@ -11,10 +11,11 @@ stdin, so they exercise the non-TTY branch of `_read_stdin_jsonl`.
 * Run cdcasasagi "add https://mcp.notion.com/mcp --write"
 * "notion" entry is written to the config file
 * Pipe JSONL to cdcasasagi "import - --write"
-  |url                              |
-  |---------------------------------|
-  |https://mcp.notion.com/mcp       |
-  |https://developers.openai.com/mcp|
+
+   |url                              |
+   |---------------------------------|
+   |https://mcp.notion.com/mcp       |
+   |https://developers.openai.com/mcp|
 * The last command fails
 * The config file is unchanged since the last write
 
@@ -24,8 +25,9 @@ stdin, so they exercise the non-TTY branch of `_read_stdin_jsonl`.
 * Run cdcasasagi "add https://mcp.notion.com/mcp --write"
 * "notion" entry is written to the config file
 * Pipe JSONL to cdcasasagi "import - --force --write"
-  |url                              |
-  |---------------------------------|
-  |https://mcp.notion.com/mcp       |
-  |https://developers.openai.com/mcp|
+
+   |url                              |
+   |---------------------------------|
+   |https://mcp.notion.com/mcp       |
+   |https://developers.openai.com/mcp|
 * "notion,developers" entries are written to the config file
