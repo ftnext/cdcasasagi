@@ -12,7 +12,7 @@ echo "Install gh..."
 bun x gh-setup-hooks
 
 GAUGE_VERSION=1.6.28
-if ! command -v gauge &> /dev/null; then
+if ! command -v gauge &> /dev/null || [ "$(gauge --version | head -n 1 | awk '{print $NF}')" != "${GAUGE_VERSION}" ]; then
     echo "Install gauge ${GAUGE_VERSION}..."
     mkdir -p "${HOME}/.local/bin"
     curl -SsL -o /tmp/gauge.zip "https://github.com/getgauge/gauge/releases/download/v${GAUGE_VERSION}/gauge-${GAUGE_VERSION}-linux.x86_64.zip"
