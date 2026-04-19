@@ -14,6 +14,7 @@ previous state to `.bak`.
    |-----------------------------|
    |https://mcp.notion.com/mcp   |
    |https://mcp.linear.app/mcp   |
+* A preview is shown
 * The config file is unchanged
 
 ## The second --write merges new entries and preserves the previous state in .bak
