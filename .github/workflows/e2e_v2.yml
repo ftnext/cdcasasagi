@@ -23,6 +23,7 @@ jobs:
     - name: Install Gauge CLI and plugins
       uses: getgauge/setup-gauge@50709cf75e99bb852890c8826b9600a237981ff1 # master
       with:
+        gauge-version: v1.6.28
         gauge-plugins: python, html-report
     - name: Install dependencies
       run: uv sync --group dev
