@@ -1,55 +1,55 @@
 # cdcasasagi add --write
 
-`--write` の round-trip (設定ファイル書き込み / .bak 作成 / revert) のE2E
+E2E for the `--write` round-trip (write the config file / create .bak / revert from .bak)
 
-## add --write は設定ファイルと .bak を作成する
+## add --write creates the config file and .bak
 
-* MCPサーバ設定なしでClaude Desktopが使われている
-* cdcasasagiで"add https://mcp.notion.com/mcp --write"を実行する
-* 設定ファイルに"notion"エントリが書き込まれている
-* バックアップファイルが作成されている
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* "notion" entry is written to the config file
+* The backup file is created
 
-## 2回目の --write は直前の状態を .bak に残す
+## The second --write preserves the previous state in .bak
 
-* MCPサーバ設定なしでClaude Desktopが使われている
-* cdcasasagiで"add https://mcp.notion.com/mcp --write"を実行する
-* 設定ファイルに"notion"エントリが書き込まれている
-* cdcasasagiで"add https://developers.openai.com/mcp --write"を実行する
-* 設定ファイルに"notion,developers"エントリが書き込まれている
-* バックアップファイルに"notion"エントリが書き込まれている
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* "notion" entry is written to the config file
+* Run cdcasasagi "add https://developers.openai.com/mcp --write"
+* "notion,developers" entries are written to the config file
+* "notion" entry is written to the backup file
 
-## 既存エントリとの衝突は --force なしで失敗する
+## add --write fails on a conflict without --force
 
-* MCPサーバ設定なしでClaude Desktopが使われている
-* cdcasasagiで"add https://mcp.notion.com/mcp --write"を実行する
-* 設定ファイルに"notion"エントリが書き込まれている
-* cdcasasagiで"add https://mcp.notion.com/mcp --write"を実行する
-* 直前のコマンドは失敗する
-* 設定ファイルは直前の書き込みから変更されていない
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* "notion" entry is written to the config file
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* The last command fails
+* The config file is unchanged since the last write
 
-## 同一URLを別名で --write すると失敗する
+## --write with a different name for the same URL fails
 
-* MCPサーバ設定なしでClaude Desktopが使われている
-* cdcasasagiで"add https://mcp.notion.com/mcp --write"を実行する
-* 設定ファイルに"notion"エントリが書き込まれている
-* cdcasasagiで"add https://mcp.notion.com/mcp --name my-notion --write"を実行する
-* 直前のコマンドは失敗する
-* 設定ファイルは直前の書き込みから変更されていない
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* "notion" entry is written to the config file
+* Run cdcasasagi "add https://mcp.notion.com/mcp --name my-notion --write"
+* The last command fails
+* The config file is unchanged since the last write
 
-## --force を付けると別名にリネームされる
+## With --force the entry is renamed
 
-* MCPサーバ設定なしでClaude Desktopが使われている
-* cdcasasagiで"add https://mcp.notion.com/mcp --write"を実行する
-* 設定ファイルに"notion"エントリが書き込まれている
-* cdcasasagiで"add https://mcp.notion.com/mcp --name my-notion --write --force"を実行する
-* 設定ファイルに"my-notion"エントリが書き込まれている
-* 設定ファイル内"my-notion"のURLは"https://mcp.notion.com/mcp"である
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* "notion" entry is written to the config file
+* Run cdcasasagi "add https://mcp.notion.com/mcp --name my-notion --write --force"
+* "my-notion" entry is written to the config file
+* The URL of "my-notion" in the config file is "https://mcp.notion.com/mcp"
 
-## revert はバックアップファイルの状態に戻す
+## revert restores the state from the backup file
 
-* MCPサーバ設定なしでClaude Desktopが使われている
-* cdcasasagiで"add https://mcp.notion.com/mcp --write"を実行する
-* cdcasasagiで"add https://developers.openai.com/mcp --write"を実行する
-* 設定ファイルに"notion,developers"エントリが書き込まれている
-* cdcasasagiで"revert"を実行する
-* 設定ファイルに"notion"エントリが書き込まれている
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* Run cdcasasagi "add https://developers.openai.com/mcp --write"
+* "notion,developers" entries are written to the config file
+* Run cdcasasagi "revert"
+* "notion" entry is written to the config file

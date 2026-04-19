@@ -15,7 +15,12 @@ def _load_json(path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-@step("設定ファイルに<names>エントリが書き込まれている")
+@step(
+    [
+        "<names> entry is written to the config file",
+        "<names> entries are written to the config file",
+    ]
+)
 def assert_config_has_entries(names):
     path = config_path()
     config = _load_json(path)
@@ -25,13 +30,18 @@ def assert_config_has_entries(names):
     data_store.scenario["last_written_config"] = path.read_bytes()
 
 
-@step("バックアップファイルが作成されている")
+@step("The backup file is created")
 def assert_backup_exists():
     bak = backup_path(config_path())
     assert bak.exists(), f"backup file not found: {bak}"
 
 
-@step("バックアップファイルに<names>エントリが書き込まれている")
+@step(
+    [
+        "<names> entry is written to the backup file",
+        "<names> entries are written to the backup file",
+    ]
+)
 def assert_backup_has_entries(names):
     bak = backup_path(config_path())
     assert bak.exists(), f"backup file not found: {bak}"
@@ -41,7 +51,7 @@ def assert_backup_has_entries(names):
     assert actual == expected, f"expected backup entries {expected}, got {actual}"
 
 
-@step("直前のコマンドは失敗する")
+@step("The last command fails")
 def assert_last_command_failed():
     result = data_store.scenario["last_result"]
     assert result.returncode != 0, (
@@ -50,7 +60,7 @@ def assert_last_command_failed():
     )
 
 
-@step("設定ファイルは直前の書き込みから変更されていない")
+@step("The config file is unchanged since the last write")
 def assert_config_unchanged_since_last_write():
     snapshot = data_store.scenario["last_written_config"]
     current = config_path().read_bytes()
@@ -59,7 +69,7 @@ def assert_config_unchanged_since_last_write():
     )
 
 
-@step("設定ファイル内<name>のURLは<url>である")
+@step("The URL of <name> in the config file is <url>")
 def assert_entry_url(name, url):
     config = _load_json(config_path())
     entry = config.get("mcpServers", {}).get(name)
