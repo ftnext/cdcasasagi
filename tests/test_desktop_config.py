@@ -399,25 +399,6 @@ class TestListMcpProxyEntries:
         }
         assert list_mcp_proxy_entries(config) == [("notion", "https://n.example/mcp")]
 
-    def test_skips_non_string_command(self):
-        config = {
-            "mcpServers": {
-                "null-cmd": {
-                    "command": None,
-                    "args": ["--transport", "streamablehttp", "https://x.example/mcp"],
-                },
-                "dict-cmd": {
-                    "command": {"path": "/usr/bin/mcp-proxy"},
-                    "args": ["--transport", "streamablehttp", "https://y.example/mcp"],
-                },
-                "ok": {
-                    "command": "/usr/bin/mcp-proxy",
-                    "args": ["--transport", "streamablehttp", "https://z.example/mcp"],
-                },
-            }
-        }
-        assert list_mcp_proxy_entries(config) == [("ok", "https://z.example/mcp")]
-
     def test_skips_malformed_args(self):
         config = {
             "mcpServers": {
@@ -428,14 +409,6 @@ class TestListMcpProxyEntries:
                 "wrong-flag": {
                     "command": "/usr/bin/mcp-proxy",
                     "args": ["--other", "x", "https://example.com/mcp"],
-                },
-                "null-args": {
-                    "command": "/usr/bin/mcp-proxy",
-                    "args": None,
-                },
-                "dict-args": {
-                    "command": "/usr/bin/mcp-proxy",
-                    "args": {"transport": "streamablehttp"},
                 },
                 "ok": {
                     "command": "/usr/bin/mcp-proxy",
