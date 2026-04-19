@@ -5,10 +5,14 @@ the entire write, and that `--force --write` overwrites the conflict and
 applies every entry. These checks run through a real subprocess with piped
 stdin, so they exercise the non-TTY branch of `_read_stdin_jsonl`.
 
+The existing notion entry is registered with `--transport sse` so the
+default-transport entry in the imported JSONL conflicts with it (an identical
+entry would be classified as "identical", not "conflict").
+
 ## A conflict without --force writes nothing
 
 * Claude Desktop is used with no MCP server entries
-* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* Run cdcasasagi "add https://mcp.notion.com/mcp --transport sse --write"
 * "notion" entry is written to the config file
 * Pipe JSONL to cdcasasagi "import - --write"
 
@@ -22,7 +26,7 @@ stdin, so they exercise the non-TTY branch of `_read_stdin_jsonl`.
 ## --force --write overwrites the conflict and applies every entry
 
 * Claude Desktop is used with no MCP server entries
-* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* Run cdcasasagi "add https://mcp.notion.com/mcp --transport sse --write"
 * "notion" entry is written to the config file
 * Pipe JSONL to cdcasasagi "import - --force --write"
 
