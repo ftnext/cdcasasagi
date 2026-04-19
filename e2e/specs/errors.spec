@@ -22,11 +22,11 @@ expected stderr, and no config mutation on the error path.
 ## Broken JSONL writes nothing even with import --write
 
 * Claude Desktop is used with no MCP server entries
-* Run cdcasasagi "import - --write" with stdin <stdin>
-   """
-   {"url": "https://mcp.notion.com/mcp"}
-   {not json}
-   """
+* Run cdcasasagi "import - --write" with the following raw lines piped to stdin
+     |line                               |
+     |-----------------------------------|
+     |{"url": "https://mcp.notion.com/mcp"}|
+     |{not json}                         |
 * The last command fails
 * stderr contains "Failed to parse JSON Lines"
 * The config file is unchanged
