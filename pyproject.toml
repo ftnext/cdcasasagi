@@ -1,6 +1,6 @@
 [project]
 name = "cdcasasagi"
-version = "0.3.1"
+version = "0.4.0"
 description = "鵲 - Bridge Claude Desktop to Streamable HTTP MCP servers via mcp-proxy "
 authors = [
     { name = "ftnext", email = "takuyafjp+develop@gmail.com" }
@@ -9,7 +9,7 @@ license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Operating System :: MacOS",
