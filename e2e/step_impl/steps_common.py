@@ -50,17 +50,6 @@ def run_cdcasasagi(args):
     data_store.scenario["last_result"] = result
 
 
-@step("プレビューが表示される")
-def assert_preview_shown():
-    result = data_store.scenario["last_result"]
-    assert result.returncode == 0, (
-        f"exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-    )
-    assert "This is a preview" in result.stdout, (
-        f"preview marker not found in stdout:\n{result.stdout}"
-    )
-
-
 @step("設定ファイルは変更されていない")
 def assert_config_unchanged():
     initial = data_store.scenario["initial_config"]
