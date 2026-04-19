@@ -31,7 +31,7 @@ def run_cdcasasagi_with_jsonl(args, table):
     data_store.scenario["staging_jsonl_cleanup"] = True
 
 
-@step('The staging file "<path>" is created')
+@step("The staging file <path> is created")
 def assert_staging_file_created(path):
     staged = Path(path)
     assert staged.is_file(), f"staging file not created: {staged.resolve()}"

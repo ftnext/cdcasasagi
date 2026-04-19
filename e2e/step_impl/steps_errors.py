@@ -10,7 +10,8 @@ from getgauge.python import data_store, step
 @step("Run cdcasasagi <args> with stdin <stdin>")
 def run_cdcasasagi_with_stdin(args, stdin):
     cmd = [sys.executable, "-m", "cdcasasagi"] + shlex.split(args)
-    result = subprocess.run(cmd, input=stdin, capture_output=True, text=True)
+    stdin_input = stdin if stdin.endswith("\n") else stdin + "\n"
+    result = subprocess.run(cmd, input=stdin_input, capture_output=True, text=True)
     data_store.scenario["last_result"] = result
 
 
