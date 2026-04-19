@@ -10,5 +10,8 @@ reports
 # Gauge - python compiled files
 *.pyc
 
+# Local-only env properties (e.g. CLAUDE_DESKTOP_CONFIG override)
+env/default/local.properties
+
 # Configure project root .gitignore
 !*.spec
