@@ -88,7 +88,8 @@ Paste JSONL from stdin instead of preparing a file. When reading from stdin, the
 
 ```
 cdcasasagi validate-import -
-# Paste JSONL, then press Ctrl+D (Ctrl+Z on Windows)
+# Paste JSONL, then press Enter on a blank line to finish
+# (Ctrl+D / Ctrl+Z also works)
 
 cdcasasagi import ./mcp-servers.jsonl --write
 ```

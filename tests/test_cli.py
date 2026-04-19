@@ -723,6 +723,47 @@ class TestValidate:
         assert not (tmp_path / "mcp-servers.jsonl").exists()
         assert "Saved:" not in result.output
 
+    def test_tty_stdin_blank_line_terminates(self, monkeypatch):
+        """TTY stdin stops reading at the first blank line."""
+        import io
+
+        from cdcasasagi.cli import _read_stdin_jsonl
+
+        class FakeStdin(io.StringIO):
+            def isatty(self):
+                return True
+
+        text = (
+            '{"url": "https://mcp.notion.com/mcp"}\n'
+            '{"url": "https://mcp.linear.app/mcp"}\n'
+            "\n"
+            # Anything after the blank line must be ignored.
+            '{"url": "https://ignored.example.com/mcp"}\n'
+        )
+        monkeypatch.setattr("cdcasasagi.cli.sys.stdin", FakeStdin(text))
+        assert _read_stdin_jsonl() == (
+            '{"url": "https://mcp.notion.com/mcp"}\n'
+            '{"url": "https://mcp.linear.app/mcp"}\n'
+        )
+
+    def test_piped_stdin_reads_to_eof(self, monkeypatch):
+        """Non-TTY stdin reads all the way to EOF (blank lines don't stop it)."""
+        import io
+
+        from cdcasasagi.cli import _read_stdin_jsonl
+
+        class FakeStdin(io.StringIO):
+            def isatty(self):
+                return False
+
+        text = (
+            '{"url": "https://a.example.com/mcp"}\n'
+            "\n"
+            '{"url": "https://b.example.com/mcp"}\n'
+        )
+        monkeypatch.setattr("cdcasasagi.cli.sys.stdin", FakeStdin(text))
+        assert _read_stdin_jsonl() == text
+
 
 class TestValidateErrors:
     def test_invalid_jsonl(self, validate_env, tmp_path):
