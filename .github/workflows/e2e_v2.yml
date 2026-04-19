@@ -24,7 +24,7 @@ jobs:
       uses: getgauge/setup-gauge@50709cf75e99bb852890c8826b9600a237981ff1 # master
       with:
         gauge-version: '1.6.28'
-        gauge-plugins: python, html-report
+        gauge-plugins: python, html-report, screenshot
     - name: Install dependencies
       run: uv sync --group dev
     - name: Run Gauge E2E
