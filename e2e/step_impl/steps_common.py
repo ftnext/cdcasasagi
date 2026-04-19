@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import subprocess
@@ -38,6 +39,39 @@ def given_claude_desktop_without_mcp_servers():
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_INITIAL_CONFIG, encoding="utf-8")
     data_store.scenario["initial_config"] = _INITIAL_CONFIG
+
+
+def _seed_config(config: dict) -> None:
+    _guard_against_overwriting_real_config()
+    text = json.dumps(config)
+    path = config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    data_store.scenario["initial_config"] = text
+
+
+@step("Claude Desktop's config has the following mcpServers entries <table>")
+def given_config_with_entries(table):
+    """Seed claude_desktop_config.json directly, bypassing `add --write`.
+
+    The ``args`` column is a comma-separated list. This lets scenarios create
+    entries whose ``command`` is something other than ``mcp-proxy`` -- a shape
+    ``add`` would never produce -- so we can exercise how ``list``/``delete``
+    treat hand-edited entries.
+    """
+    names = table.get_column_values_with_name("name")
+    commands = table.get_column_values_with_name("command")
+    args_column = table.get_column_values_with_name("args")
+    servers: dict[str, dict] = {}
+    for name, cmd, args in zip(names, commands, args_column):
+        args_list = [a for a in args.split(",") if a]
+        servers[name] = {"command": cmd, "args": args_list}
+    _seed_config({"mcpServers": servers})
+
+
+@step("Claude Desktop's config has an empty mcpServers object")
+def given_config_with_empty_mcp_servers():
+    _seed_config({"mcpServers": {}})
 
 
 @step("Run cdcasasagi <args>")
