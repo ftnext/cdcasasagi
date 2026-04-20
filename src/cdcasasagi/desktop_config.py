@@ -117,6 +117,35 @@ def build_entry(mcp_proxy_path: Path, transport: str, url: str) -> dict[str, Any
     }
 
 
+def _replace_preserving_order(
+    servers: dict[str, Any],
+    name: str,
+    entry: dict[str, Any],
+    replaces: list[str],
+) -> dict[str, Any]:
+    """Return a new ``mcpServers`` dict with ``name -> entry``, dropping every
+    key in ``replaces``.
+
+    ``name`` takes the earliest original position among ``replaces + [name]``
+    that exists in *servers*. If none of those keys are present, ``name`` is
+    appended at the end. Preserving the slot keeps the preview diff limited to
+    the renamed key instead of showing a delete-and-append of the whole entry.
+    """
+    drop = set(replaces) | {name}
+    out: dict[str, Any] = {}
+    inserted = False
+    for key, val in servers.items():
+        if key in drop:
+            if not inserted:
+                out[name] = entry
+                inserted = True
+        else:
+            out[key] = val
+    if not inserted:
+        out[name] = entry
+    return out
+
+
 def merge_entry(
     config: dict[str, Any],
     name: str,
@@ -126,23 +155,20 @@ def merge_entry(
     url: str | None = None,
 ) -> dict[str, Any]:
     config = json.loads(json.dumps(config))  # deep copy
-    if "mcpServers" not in config:
-        config["mcpServers"] = {}
+    servers = config.setdefault("mcpServers", {})
 
+    others: list[str] = []
     if url is not None:
         others = [n for n in find_entry_names_by_url(config, url) if n != name]
-        if others:
-            if not force:
-                raise DuplicateUrlError(
-                    f'URL already configured as "{others[0]}". Use --force to overwrite'
-                )
-            for n in others:
-                del config["mcpServers"][n]
+        if others and not force:
+            raise DuplicateUrlError(
+                f'URL already configured as "{others[0]}". Use --force to overwrite'
+            )
 
-    if name in config["mcpServers"] and not force:
+    if name in servers and not others and not force:
         raise EntryExistsError(f'"{name}" already exists. Use --force to overwrite')
 
-    config["mcpServers"][name] = entry
+    config["mcpServers"] = _replace_preserving_order(servers, name, entry, others)
     return config
 
 
@@ -221,12 +247,15 @@ def apply_import(
             config["mcpServers"][name] = entry
         elif action == "conflict" and force:
             args = entry.get("args", [])
-            if args:
-                url = args[-1]
-                for other in find_entry_names_by_url(config, url):
-                    if other != name:
-                        del config["mcpServers"][other]
-            config["mcpServers"][name] = entry
+            url = args[-1] if args else None
+            replaces = (
+                [n for n in find_entry_names_by_url(config, url) if n != name]
+                if url is not None
+                else []
+            )
+            config["mcpServers"] = _replace_preserving_order(
+                config["mcpServers"], name, entry, replaces
+            )
     return config
 
 

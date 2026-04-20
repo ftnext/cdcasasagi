@@ -127,6 +127,46 @@ class TestMergeEntry:
         merge_entry(config, "notion", entry, force=False)
         assert "notion" not in config["mcpServers"]
 
+    def test_url_force_rename_preserves_position(self):
+        url_a = "https://a.example/mcp"
+        url_b = "https://b.example/mcp"
+        config = {
+            "mcpServers": {
+                "a": _entry(url_a),
+                "b": _entry(url_b),
+            }
+        }
+        new = _entry(url_a, command="new")
+        result = merge_entry(config, "c", new, force=True, url=url_a)
+        assert list(result["mcpServers"].keys()) == ["c", "b"]
+        assert result["mcpServers"]["c"] == new
+
+    def test_url_force_multiple_aliases_collapse_to_first_slot(self):
+        url_a = "https://a.example/mcp"
+        url_b = "https://b.example/mcp"
+        config = {
+            "mcpServers": {
+                "a": _entry(url_a),
+                "b": _entry(url_a),
+                "c": _entry(url_b),
+            }
+        }
+        new = _entry(url_a, command="new")
+        result = merge_entry(config, "new", new, force=True, url=url_a)
+        assert list(result["mcpServers"].keys()) == ["new", "c"]
+
+    def test_same_name_overwrite_preserves_position(self):
+        config = {
+            "mcpServers": {
+                "a": {"command": "old"},
+                "b": {"command": "z"},
+            }
+        }
+        new = {"command": "new"}
+        result = merge_entry(config, "a", new, force=True)
+        assert list(result["mcpServers"].keys()) == ["a", "b"]
+        assert result["mcpServers"]["a"] == new
+
 
 class TestRemoveEntriesByUrl:
     def _managed(self, url, command="mcp-proxy"):
@@ -427,6 +467,20 @@ class TestApplyImport:
         assert "my-notion" in result["mcpServers"]
         assert "notion" not in result["mcpServers"]
         assert result["mcpServers"]["my-notion"] == incoming
+
+    def test_url_alias_conflict_force_preserves_position(self):
+        """The renamed entry keeps the slot of the aliased entry it replaces."""
+        url = "https://mcp.notion.com/mcp"
+        url2 = "https://other.example/mcp"
+        config = {
+            "mcpServers": {
+                "notion": _entry(url),
+                "other": _entry(url2),
+            }
+        }
+        plan = [("my-notion", "conflict", _entry(url, command="new"))]
+        result = apply_import(config, plan, force=True)
+        assert list(result["mcpServers"].keys()) == ["my-notion", "other"]
 
     def test_url_alias_conflict_without_force_does_not_remove(self):
         url = "https://mcp.notion.com/mcp"

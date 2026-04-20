@@ -340,6 +340,33 @@ class TestAddErrors:
         assert "my-notion" in data["mcpServers"]
         assert "notion" not in data["mcpServers"]
 
+    def test_force_rename_preview_diff_is_minimal(self, config_env):
+        """A rename via --force must only touch the renamed key in the diff,
+        not reorder the other entries into the added/removed block.
+        """
+        config_file, fake_proxy = config_env
+        url_a = "https://mcp.notion.com/mcp"
+        url_b = "https://developers.openai.com/mcp"
+        notion = {
+            "command": str(fake_proxy),
+            "args": ["--transport", "streamablehttp", url_a],
+        }
+        openai = {
+            "command": str(fake_proxy),
+            "args": ["--transport", "streamablehttp", url_b],
+        }
+        config_file.write_text(
+            json.dumps({"mcpServers": {"notion": notion, "openai": openai}})
+        )
+        result = runner.invoke(app, ["add", url_a, "--name", "my-notion", "--force"])
+        assert result.exit_code == 0
+        assert '-    "notion":' in result.output
+        assert '+    "my-notion":' in result.output
+        # The untouched entry must not appear as an add/remove in the diff.
+        for line in result.output.splitlines():
+            if line.startswith(("+", "-")) and not line.startswith(("+++", "---")):
+                assert '"openai"' not in line, line
+
     def test_duplicate_url_force_removes_all(self, config_env):
         config_file, fake_proxy = config_env
         url = "https://mcp.notion.com/mcp"
