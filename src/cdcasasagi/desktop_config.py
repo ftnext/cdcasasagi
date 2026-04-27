@@ -110,9 +110,18 @@ def list_mcp_proxy_entries(config: dict[str, Any]) -> list[tuple[str, str]]:
     return result
 
 
-def build_entry(mcp_proxy_path: Path, transport: str, url: str) -> dict[str, Any]:
+def build_entry(
+    mcp_proxy_path: Path,
+    transport: str,
+    url: str,
+    *,
+    forward_slashes: bool = False,
+) -> dict[str, Any]:
+    command = str(mcp_proxy_path)
+    if forward_slashes:
+        command = command.replace("\\", "/")
     return {
-        "command": str(mcp_proxy_path),
+        "command": command,
         "args": ["--transport", transport, url],
     }
 

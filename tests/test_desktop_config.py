@@ -1,5 +1,5 @@
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -86,6 +86,31 @@ class TestBuildEntry:
             "command": "/usr/bin/mcp-proxy",
             "args": ["--transport", "streamablehttp", "https://mcp.notion.com/mcp"],
         }
+
+    def test_forward_slashes_replaces_backslashes(self):
+        win_path = PureWindowsPath(r"C:\Users\you\.local\bin\mcp-proxy.exe")
+        entry = build_entry(
+            win_path,
+            "streamablehttp",
+            "https://example.com/mcp",
+            forward_slashes=True,
+        )
+        assert entry["command"] == "C:/Users/you/.local/bin/mcp-proxy.exe"
+
+    def test_forward_slashes_default_off(self):
+        win_path = PureWindowsPath(r"C:\Users\you\mcp-proxy.exe")
+        entry = build_entry(win_path, "streamablehttp", "https://example.com/mcp")
+        assert entry["command"] == r"C:\Users\you\mcp-proxy.exe"
+
+    def test_forward_slashes_noop_on_posix_path(self):
+        posix_path = PurePosixPath("/usr/bin/mcp-proxy")
+        entry = build_entry(
+            posix_path,
+            "streamablehttp",
+            "https://example.com/mcp",
+            forward_slashes=True,
+        )
+        assert entry["command"] == "/usr/bin/mcp-proxy"
 
 
 class TestMergeEntry:

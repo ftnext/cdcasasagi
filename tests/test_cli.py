@@ -1,6 +1,7 @@
 import json
 import os
 from importlib.metadata import version as pkg_version
+from pathlib import PureWindowsPath
 
 import pytest
 import typer
@@ -401,6 +402,67 @@ class TestAddErrors:
         assert "--name" in result.output
 
 
+class TestAddWindowsForwardSlashes:
+    """Bypass the platform guard so the production behavior of writing
+    forward-slash paths can be exercised on any host. The guard itself is
+    tested separately by ``test_errors_on_posix``."""
+
+    def test_replaces_backslashes_on_windows(self, config_env, monkeypatch):
+        config_file, _ = config_env
+        monkeypatch.setattr(
+            "cdcasasagi.cli._require_windows_for_forward_slashes",
+            lambda flag: None,
+        )
+        monkeypatch.setattr(
+            "cdcasasagi.cli.mcp_proxy.resolve_path",
+            lambda: PureWindowsPath(r"C:\Users\you\.local\bin\mcp-proxy.exe"),
+        )
+        result = runner.invoke(
+            app,
+            [
+                "add",
+                "https://mcp.notion.com/mcp",
+                "--write",
+                "--windows-forward-slashes",
+            ],
+        )
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        command = data["mcpServers"]["notion"]["command"]
+        assert command == "C:/Users/you/.local/bin/mcp-proxy.exe"
+        assert "\\" not in command
+
+    def test_errors_on_posix(self, config_env):
+        config_file, _ = config_env
+        result = runner.invoke(
+            app,
+            [
+                "add",
+                "https://mcp.notion.com/mcp",
+                "--write",
+                "--windows-forward-slashes",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "only valid on Windows" in result.output
+        assert not config_file.exists()
+
+    def test_default_off_keeps_native_command(self, config_env, monkeypatch):
+        config_file, _ = config_env
+        monkeypatch.setattr(
+            "cdcasasagi.cli._require_windows_for_forward_slashes",
+            lambda flag: None,
+        )
+        monkeypatch.setattr(
+            "cdcasasagi.cli.mcp_proxy.resolve_path",
+            lambda: PureWindowsPath(r"C:\Users\you\mcp-proxy.exe"),
+        )
+        result = runner.invoke(app, ["add", "https://mcp.notion.com/mcp", "--write"])
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        assert data["mcpServers"]["notion"]["command"] == r"C:\Users\you\mcp-proxy.exe"
+
+
 class TestRevert:
     def test_revert_after_add(self, config_env):
         config_file, _ = config_env
@@ -716,6 +778,56 @@ class TestImportWrite:
         result = runner.invoke(app, ["import", str(input_file), "--write"])
         assert result.exit_code == 0
         assert "No changes needed" in result.output
+
+
+class TestImportWindowsForwardSlashes:
+    def test_replaces_backslashes_on_windows(self, config_env, tmp_path, monkeypatch):
+        config_file, _ = config_env
+        monkeypatch.setattr(
+            "cdcasasagi.cli._require_windows_for_forward_slashes",
+            lambda flag: None,
+        )
+        monkeypatch.setattr(
+            "cdcasasagi.cli.mcp_proxy.resolve_path",
+            lambda: PureWindowsPath(r"C:\Users\you\.local\bin\mcp-proxy.exe"),
+        )
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text(
+            '{"url": "https://mcp.notion.com/mcp"}\n'
+            '{"url": "https://developers.openai.com/mcp"}\n'
+        )
+        result = runner.invoke(
+            app,
+            [
+                "import",
+                str(input_file),
+                "--write",
+                "--windows-forward-slashes",
+            ],
+        )
+        assert result.exit_code == 0
+        data = json.loads(config_file.read_text())
+        for name in ("notion", "developers"):
+            command = data["mcpServers"][name]["command"]
+            assert command == "C:/Users/you/.local/bin/mcp-proxy.exe"
+            assert "\\" not in command
+
+    def test_errors_on_posix(self, config_env, tmp_path):
+        config_file, _ = config_env
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text('{"url": "https://mcp.notion.com/mcp"}\n')
+        result = runner.invoke(
+            app,
+            [
+                "import",
+                str(input_file),
+                "--write",
+                "--windows-forward-slashes",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "only valid on Windows" in result.output
+        assert not config_file.exists()
 
 
 class TestImportConflicts:
