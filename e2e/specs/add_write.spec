@@ -63,3 +63,15 @@ this scenario locks in the native shape on each runner.
 * Claude Desktop is used with no MCP server entries
 * Run cdcasasagi "add https://mcp.notion.com/mcp --write"
 * The "notion" entry's command is an absolute path using the platform's native separator
+
+## --windows-forward-slashes opts into '/' on Windows and errors elsewhere
+
+The flag is intended for developers preparing a `--write` command for a Windows
+non-developer to copy-paste, so the resulting JSON line matches what the same
+command produces on macOS. On Windows the runner asserts the command uses `/`
+instead of `\`. On macOS/Linux the runner asserts the command refuses to run
+and writes nothing.
+
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write --windows-forward-slashes"
+* The --windows-forward-slashes outcome matches the platform for the "notion" entry

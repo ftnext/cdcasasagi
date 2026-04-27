@@ -55,6 +55,14 @@ The written entry looks like this:
 }
 ```
 
+On Windows, the `command` path normally uses `\`. Pass `--windows-forward-slashes` to write `/` instead, so the resulting JSON line matches what the same command produces on macOS:
+
+```
+cdcasasagi add https://developers.openai.com/mcp --write --windows-forward-slashes
+```
+
+The flag is Windows-only and exits with an error on macOS/Linux.
+
 ### delete
 
 Remove an entry from the Claude Desktop config by URL:
@@ -97,6 +105,8 @@ cdcasasagi import - --write
 # Paste JSONL, then press Enter on a blank line to finish
 # (Ctrl+D / Ctrl+Z also works)
 ```
+
+`import` accepts the same `--windows-forward-slashes` flag as `add` and applies it to every imported entry. Windows-only — errors on macOS/Linux.
 
 ### list
 

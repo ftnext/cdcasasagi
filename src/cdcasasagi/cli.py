@@ -77,6 +77,15 @@ def _validate_url(url: str) -> None:
         raise typer.Exit(code=1)
 
 
+def _require_windows_for_forward_slashes(flag: bool) -> None:
+    if flag and os.name != "nt":
+        typer.echo(
+            "--windows-forward-slashes is only valid on Windows.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+
 @app.command()
 def add(
     url: str = typer.Argument(..., help="URL of the MCP server"),
@@ -86,8 +95,14 @@ def add(
     ),
     force: bool = typer.Option(False, help="Overwrite existing entry"),
     write: bool = typer.Option(False, help="Actually write to the file"),
+    windows_forward_slashes: bool = typer.Option(
+        False,
+        "--windows-forward-slashes",
+        help="Write command path with '/' instead of '\\' (Windows only).",
+    ),
 ) -> None:
     _validate_url(url)
+    _require_windows_for_forward_slashes(windows_forward_slashes)
 
     name_was_derived = name is None
     if name is None:
@@ -111,7 +126,9 @@ def add(
         typer.echo(str(e), err=True)
         raise typer.Exit(code=1)
 
-    entry = desktop_config.build_entry(proxy_path, transport, url)
+    entry = desktop_config.build_entry(
+        proxy_path, transport, url, forward_slashes=windows_forward_slashes
+    )
 
     try:
         merged = desktop_config.merge_entry(current_config, name, entry, force, url=url)
@@ -351,6 +368,8 @@ def _collect_entry_errors(
 def _resolve_import_entries(
     raw_entries: list[dict],
     proxy_path: Path,
+    *,
+    forward_slashes: bool = False,
 ) -> list[tuple[str, str, dict]]:
     """Validate URLs, derive names, build config entries.
 
@@ -362,7 +381,13 @@ def _resolve_import_entries(
         raise typer.Exit(code=1)
 
     return [
-        (name, url, desktop_config.build_entry(proxy_path, transport, url))
+        (
+            name,
+            url,
+            desktop_config.build_entry(
+                proxy_path, transport, url, forward_slashes=forward_slashes
+            ),
+        )
         for name, url, transport in validated
     ]
 
@@ -410,7 +435,14 @@ def import_cmd(
     force: bool = typer.Option(False, help="Overwrite existing entries on conflict"),
     write: bool = typer.Option(False, help="Actually write to the file"),
     verbose: bool = typer.Option(False, help="Show full diff in preview"),
+    windows_forward_slashes: bool = typer.Option(
+        False,
+        "--windows-forward-slashes",
+        help="Write command path with '/' instead of '\\' (Windows only).",
+    ),
 ) -> None:
+    _require_windows_for_forward_slashes(windows_forward_slashes)
+
     # Phase 1: Validation
     raw_entries, source_label, _ = _parse_import_file(file)
 
@@ -425,7 +457,9 @@ def import_cmd(
         typer.echo("\n".join(schema_errors), err=True)
         raise typer.Exit(code=1)
 
-    resolved = _resolve_import_entries(raw_entries, proxy_path)
+    resolved = _resolve_import_entries(
+        raw_entries, proxy_path, forward_slashes=windows_forward_slashes
+    )
 
     cfg_path = desktop_config.config_path()
     try:

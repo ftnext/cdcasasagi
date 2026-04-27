@@ -103,3 +103,45 @@ def assert_command_native_separator(name):
     assert os.sep in command, (
         f"command does not contain native separator {os.sep!r}: {command!r}"
     )
+
+
+@step(
+    "The --windows-forward-slashes outcome matches the platform for the <name> entry"
+)
+def assert_windows_forward_slashes_outcome(name):
+    """Single step asserting platform-correct behavior of --windows-forward-slashes.
+
+    On Windows: the entry's command is an absolute mcp-proxy.exe path written
+    with `/` and no `\\`. On macOS/Linux: the command failed with the
+    "only valid on Windows" error and no config file was written.
+    """
+    result = data_store.scenario["last_result"]
+    if os.name == "nt":
+        assert result.returncode == 0, (
+            f"expected success on Windows, got exit {result.returncode}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+        config = _load_json(config_path())
+        entry = config.get("mcpServers", {}).get(name)
+        assert entry is not None, f'entry "{name}" not found in config'
+        command = entry.get("command", "")
+        assert "/" in command, f"expected '/' in command on Windows, got {command!r}"
+        assert "\\" not in command, (
+            f"expected no '\\\\' in command on Windows, got {command!r}"
+        )
+        assert command.endswith("mcp-proxy.exe"), (
+            f"expected command basename mcp-proxy.exe, got {command!r}"
+        )
+    else:
+        assert result.returncode != 0, (
+            f"expected non-zero exit on POSIX, got {result.returncode}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+        combined = (result.stdout or "") + (result.stderr or "")
+        assert "only valid on Windows" in combined, (
+            f"expected 'only valid on Windows' in output, got:\n{combined}"
+        )
+        config = _load_json(config_path())
+        assert config.get("mcpServers", {}) == {}, (
+            f"expected no entries written on POSIX, got {config.get('mcpServers')!r}"
+        )
