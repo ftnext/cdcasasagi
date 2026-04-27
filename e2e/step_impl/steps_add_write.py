@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 
 from getgauge.python import data_store, step
 
@@ -77,4 +79,27 @@ def assert_entry_url(name, url):
     args = entry.get("args", [])
     assert args and args[-1] == url, (
         f'expected URL {url!r} at end of args for "{name}", got args={args!r}'
+    )
+
+
+@step(
+    "The <name> entry's command is an absolute path using the platform's native separator"
+)
+def assert_command_native_separator(name):
+    config = _load_json(config_path())
+    entry = config.get("mcpServers", {}).get(name)
+    assert entry is not None, f'entry "{name}" not found in config'
+    command = entry.get("command", "")
+    assert Path(command).is_absolute(), f"command is not absolute: {command!r}"
+    expected_basename = "mcp-proxy.exe" if os.name == "nt" else "mcp-proxy"
+    assert Path(command).name == expected_basename, (
+        f"expected command basename {expected_basename!r}, got {Path(command).name!r}"
+    )
+    foreign_sep = "/" if os.sep == "\\" else "\\"
+    assert foreign_sep not in command, (
+        f"command contains foreign separator {foreign_sep!r} "
+        f"(native is {os.sep!r}): {command!r}"
+    )
+    assert os.sep in command, (
+        f"command does not contain native separator {os.sep!r}: {command!r}"
     )
