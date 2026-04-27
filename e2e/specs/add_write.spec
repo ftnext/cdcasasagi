@@ -53,3 +53,13 @@ E2E for the `--write` round-trip (write the config file / create .bak / revert f
 * "notion,developers" entries are written to the config file
 * Run cdcasasagi "revert"
 * "notion" entry is written to the config file
+
+## The written command is an absolute path using the platform's native separator
+
+The command string differs by OS: forward slashes on macOS, backslashes on Windows
+(plus the `.exe` suffix). We mistook a forward-slash path for valid on Windows once;
+this scenario locks in the native shape on each runner.
+
+* Claude Desktop is used with no MCP server entries
+* Run cdcasasagi "add https://mcp.notion.com/mcp --write"
+* The "notion" entry's command is an absolute path using the platform's native separator
