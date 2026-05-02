@@ -239,6 +239,24 @@ class TestDoctor:
         assert "[WARN] Orphan APPDATA config:" in result.output
         assert "unreadable" in result.output
 
+    def test_orphan_warn_when_stat_raises_oserror(self, monkeypatch, tmp_path):
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        appdata_cfg.write_text('{"mcpServers": {}}')
+
+        original_is_file = type(appdata_cfg).is_file
+
+        def fake_is_file(self, *args, **kwargs):
+            if self == appdata_cfg:
+                raise PermissionError("ACL blocks stat")
+            return original_is_file(self, *args, **kwargs)
+
+        monkeypatch.setattr(type(appdata_cfg), "is_file", fake_is_file)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN] Orphan APPDATA config:" in result.output
+        assert "unreadable" in result.output
+
     def test_orphan_no_warn_when_non_msix_install(self, monkeypatch, tmp_path):
         appdata_cfg, _ = self._setup_windows_doctor(
             monkeypatch, tmp_path, with_msix_candidate=False

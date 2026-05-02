@@ -95,10 +95,12 @@ def _orphan_appdata_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
         return None
 
     appdata_path = desktop_config.appdata_config_path()
-    if appdata_path is None or not appdata_path.is_file():
+    if appdata_path is None:
         return None
 
     try:
+        if not appdata_path.is_file():
+            return None
         config = desktop_config.load_config(appdata_path)
     except (desktop_config.ConfigError, OSError):
         detail = (
