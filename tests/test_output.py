@@ -318,9 +318,9 @@ class TestImportWriteMessage:
 class TestDoctorMessage:
     def test_all_pass(self):
         results = [
-            ("mcp-proxy", True, "/usr/local/bin/mcp-proxy"),
-            ("Config file", True, "/tmp/config.json"),
-            ("Config directory", True, "/tmp"),
+            ("mcp-proxy", "pass", "/usr/local/bin/mcp-proxy"),
+            ("Config file", "pass", "/tmp/config.json"),
+            ("Config directory", "pass", "/tmp"),
         ]
         msg = doctor_message(results)
         assert msg.count("[PASS]") == 3
@@ -329,9 +329,9 @@ class TestDoctorMessage:
 
     def test_one_failure(self):
         results = [
-            ("mcp-proxy", True, "/usr/local/bin/mcp-proxy"),
-            ("Config file", False, "not found: /tmp/config.json"),
-            ("Config directory", True, "/tmp"),
+            ("mcp-proxy", "pass", "/usr/local/bin/mcp-proxy"),
+            ("Config file", "fail", "not found: /tmp/config.json"),
+            ("Config directory", "pass", "/tmp"),
         ]
         msg = doctor_message(results)
         assert msg.count("[PASS]") == 2
@@ -340,9 +340,9 @@ class TestDoctorMessage:
 
     def test_multiple_failures(self):
         results = [
-            ("mcp-proxy", False, "not found"),
-            ("Config file", False, "not found: /tmp/config.json"),
-            ("Config directory", False, "not writable: /tmp"),
+            ("mcp-proxy", "fail", "not found"),
+            ("Config file", "fail", "not found: /tmp/config.json"),
+            ("Config directory", "fail", "not writable: /tmp"),
         ]
         msg = doctor_message(results)
         assert msg.count("[FAIL]") == 3
@@ -350,19 +350,46 @@ class TestDoctorMessage:
 
     def test_detail_shown(self):
         results = [
-            ("mcp-proxy", True, "/path/to/mcp-proxy"),
+            ("mcp-proxy", "pass", "/path/to/mcp-proxy"),
         ]
         msg = doctor_message(results)
         assert "/path/to/mcp-proxy" in msg
 
     def test_ascii_only(self):
         results = [
-            ("mcp-proxy", True, "/usr/local/bin/mcp-proxy"),
-            ("Config file", False, "not found: /tmp/config.json"),
-            ("Config directory", True, "/tmp"),
+            ("mcp-proxy", "pass", "/usr/local/bin/mcp-proxy"),
+            ("Config file", "fail", "not found: /tmp/config.json"),
+            ("Config directory", "pass", "/tmp"),
         ]
         msg = doctor_message(results)
         assert msg.isascii()
+
+    def test_warn_renders_warn_tag(self):
+        results = [
+            ("mcp-proxy", "pass", "/usr/local/bin/mcp-proxy"),
+            ("Claude Desktop MSIX path", "warn", "see candidates"),
+        ]
+        msg = doctor_message(results)
+        assert "[WARN] Claude Desktop MSIX path:" in msg
+
+    def test_warn_counted_separately_from_failures(self):
+        results = [
+            ("mcp-proxy", "pass", "/usr/local/bin/mcp-proxy"),
+            ("Config file", "pass", "/tmp/config.json"),
+            ("Config directory", "pass", "/tmp"),
+            ("Claude Desktop MSIX path", "warn", "see candidates"),
+        ]
+        msg = doctor_message(results)
+        assert "[FAIL]" not in msg
+        assert "All checks passed (1 warning)." in msg
+
+    def test_multiple_warnings(self):
+        results = [
+            ("a", "warn", "x"),
+            ("b", "warn", "y"),
+        ]
+        msg = doctor_message(results)
+        assert "All checks passed (2 warnings)." in msg
 
 
 class TestListMessage:

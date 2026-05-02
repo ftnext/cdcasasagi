@@ -296,15 +296,21 @@ def list_message(config_path: Path, servers: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def doctor_message(results: list[tuple[str, bool, str]]) -> str:
+def doctor_message(results: list[tuple[str, str, str]]) -> str:
+    tags = {"pass": "[PASS]", "fail": "[FAIL]", "warn": "[WARN]"}
     lines: list[str] = []
-    for label, passed, detail in results:
-        tag = "[PASS]" if passed else "[FAIL]"
-        lines.append(f"{tag} {label}: {detail}")
+    for label, status, detail in results:
+        lines.append(f"{tags[status]} {label}: {detail}")
     lines.append("")
-    fail_count = sum(1 for _, passed, _ in results if not passed)
+    fail_count = sum(1 for _, status, _ in results if status == "fail")
+    warn_count = sum(1 for _, status, _ in results if status == "warn")
     if fail_count == 0:
-        lines.append("All checks passed.")
+        if warn_count == 0:
+            lines.append("All checks passed.")
+        elif warn_count == 1:
+            lines.append("All checks passed (1 warning).")
+        else:
+            lines.append(f"All checks passed ({warn_count} warnings).")
     elif fail_count == 1:
         lines.append("1 check failed. See above for details.")
     else:

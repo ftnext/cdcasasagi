@@ -28,29 +28,69 @@ def version() -> None:
 
 @app.command()
 def doctor() -> None:
-    results: list[tuple[str, bool, str]] = []
+    import platform as _platform
+
+    results: list[tuple[str, str, str]] = []
 
     try:
         proxy_path = mcp_proxy.resolve_path()
-        results.append(("mcp-proxy", True, str(proxy_path)))
+        results.append(("mcp-proxy", "pass", str(proxy_path)))
     except mcp_proxy.McpProxyNotFoundError:
-        results.append(("mcp-proxy", False, "not found"))
+        results.append(("mcp-proxy", "fail", "not found"))
 
     cfg_path = desktop_config.config_path()
     if cfg_path.is_file():
-        results.append(("Config file", True, str(cfg_path)))
+        results.append(("Config file", "pass", str(cfg_path)))
     else:
-        results.append(("Config file", False, f"not found: {cfg_path}"))
+        results.append(("Config file", "fail", f"not found: {cfg_path}"))
 
     cfg_dir = cfg_path.parent
     if os.access(cfg_dir, os.W_OK):
-        results.append(("Config directory", True, str(cfg_dir)))
+        results.append(("Config directory", "pass", str(cfg_dir)))
     else:
-        results.append(("Config directory", False, f"not writable: {cfg_dir}"))
+        results.append(("Config directory", "fail", f"not writable: {cfg_dir}"))
+
+    if _platform.system() == "Windows":
+        msix_row = _msix_doctor_row(cfg_path)
+        if msix_row is not None:
+            results.append(msix_row)
 
     typer.echo(output.doctor_message(results))
-    if not all(passed for _, passed, _ in results):
+    if any(status == "fail" for _, status, _ in results):
         raise typer.Exit(code=1)
+
+
+def _msix_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
+    if os.environ.get("CLAUDE_DESKTOP_CONFIG"):
+        return None
+    local = os.environ.get("LOCALAPPDATA", "")
+    if local:
+        try:
+            cfg_path.resolve().relative_to((Path(local) / "Packages").resolve())
+            return None
+        except ValueError:
+            pass
+    candidates = desktop_config.windows_msix_config_candidates()
+    if not candidates:
+        return None
+    lines = [
+        "Claude Desktop on MSIX reads config from a virtualized path.",
+        "Candidate path(s):",
+    ]
+    for c in candidates:
+        lines.append(f"  {c}")
+    lines.append("")
+    lines.append("Set CLAUDE_DESKTOP_CONFIG to the path Claude Desktop actually reads:")
+    lines.append(f"  CLAUDE_DESKTOP_CONFIG={candidates[0]}")
+    lines.append("")
+    lines.append(
+        "Confirm via Claude Desktop: Settings > Developer > Edit Config; the "
+        "editor's title bar shows the path. On MSIX installs Edit Config may "
+        "itself open the wrong (%APPDATA%) path "
+        "(see anthropics/claude-code#26073), so cross-check against the "
+        "candidate list above."
+    )
+    return ("Claude Desktop MSIX path", "warn", "\n".join(lines))
 
 
 @app.command(name="list")

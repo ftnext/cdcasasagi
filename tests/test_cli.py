@@ -89,6 +89,70 @@ class TestDoctor:
         assert "Config file:" in result.output
         assert "Config directory:" in result.output
 
+    def _setup_windows_doctor(self, monkeypatch, tmp_path, with_msix_candidate=True):
+        monkeypatch.delenv("CLAUDE_DESKTOP_CONFIG", raising=False)
+        appdata = tmp_path / "appdata"
+        local = tmp_path / "local"
+        appdata.mkdir()
+        local.mkdir()
+        appdata_cfg_dir = appdata / "Claude"
+        appdata_cfg_dir.mkdir()
+        appdata_cfg = appdata_cfg_dir / "claude_desktop_config.json"
+        appdata_cfg.write_text('{"mcpServers": {}}')
+        monkeypatch.setenv("APPDATA", str(appdata))
+        monkeypatch.setenv("LOCALAPPDATA", str(local))
+        monkeypatch.setattr("platform.system", lambda: "Windows")
+
+        msix_cfg = None
+        if with_msix_candidate:
+            claude_dir = (
+                local
+                / "Packages"
+                / "Claude_pzs8sxrjxfjjc"
+                / "LocalCache"
+                / "Roaming"
+                / "Claude"
+            )
+            claude_dir.mkdir(parents=True)
+            msix_cfg = claude_dir / "claude_desktop_config.json"
+
+        fake_proxy = tmp_path / "bin" / "mcp-proxy"
+        fake_proxy.parent.mkdir()
+        fake_proxy.touch()
+        fake_python = tmp_path / "bin" / "python"
+        monkeypatch.setattr("cdcasasagi.mcp_proxy.sys.executable", str(fake_python))
+
+        return appdata_cfg, msix_cfg
+
+    def test_msix_warn_when_appdata_path(self, monkeypatch, tmp_path):
+        _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN] Claude Desktop MSIX path:" in result.output
+        assert str(msix_cfg) in result.output
+        assert "CLAUDE_DESKTOP_CONFIG=" in result.output
+
+    def test_msix_no_warn_when_env_var_set(self, monkeypatch, tmp_path):
+        _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        monkeypatch.setenv("CLAUDE_DESKTOP_CONFIG", str(msix_cfg))
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN]" not in result.output
+
+    def test_msix_no_warn_when_no_candidates(self, monkeypatch, tmp_path):
+        self._setup_windows_doctor(monkeypatch, tmp_path, with_msix_candidate=False)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN]" not in result.output
+
+    def test_doctor_exits_zero_with_only_warnings(self, monkeypatch, tmp_path):
+        self._setup_windows_doctor(monkeypatch, tmp_path)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[FAIL]" not in result.output
+        assert "All checks passed (1 warning)." in result.output
+
 
 class TestList:
     def test_lists_entries_alphabetically(self, config_env):

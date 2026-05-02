@@ -14,6 +14,7 @@ from cdcasasagi.desktop_config import (
     build_entry,
     config_path,
     list_mcp_proxy_entries,
+    windows_msix_config_candidates,
     load_backup,
     load_config,
     merge_entry,
@@ -47,6 +48,93 @@ class TestConfigPath:
         monkeypatch.setenv("APPDATA", "/fake/appdata")
         result = config_path()
         assert result == Path("/fake/appdata/Claude/claude_desktop_config.json")
+
+
+class TestWindowsMsixConfigCandidates:
+    def _setup_windows(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            "cdcasasagi.desktop_config.platform.system", lambda: "Windows"
+        )
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    def test_non_windows(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            "cdcasasagi.desktop_config.platform.system", lambda: "Darwin"
+        )
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        assert windows_msix_config_candidates() == []
+
+    def test_no_localappdata(self, monkeypatch):
+        monkeypatch.setattr(
+            "cdcasasagi.desktop_config.platform.system", lambda: "Windows"
+        )
+        monkeypatch.delenv("LOCALAPPDATA", raising=False)
+        assert windows_msix_config_candidates() == []
+
+    def test_no_packages_dir(self, monkeypatch, tmp_path):
+        self._setup_windows(monkeypatch, tmp_path)
+        assert windows_msix_config_candidates() == []
+
+    def test_one_match_dir_only(self, monkeypatch, tmp_path):
+        self._setup_windows(monkeypatch, tmp_path)
+        claude_dir = (
+            tmp_path
+            / "Packages"
+            / "Claude_pzs8sxrjxfjjc"
+            / "LocalCache"
+            / "Roaming"
+            / "Claude"
+        )
+        claude_dir.mkdir(parents=True)
+        result = windows_msix_config_candidates()
+        assert result == [claude_dir / "claude_desktop_config.json"]
+
+    def test_one_match_file_exists(self, monkeypatch, tmp_path):
+        self._setup_windows(monkeypatch, tmp_path)
+        claude_dir = (
+            tmp_path
+            / "Packages"
+            / "Claude_pzs8sxrjxfjjc"
+            / "LocalCache"
+            / "Roaming"
+            / "Claude"
+        )
+        claude_dir.mkdir(parents=True)
+        cfg = claude_dir / "claude_desktop_config.json"
+        cfg.write_text("{}")
+        assert windows_msix_config_candidates() == [cfg]
+
+    def test_two_matches_sorted(self, monkeypatch, tmp_path):
+        self._setup_windows(monkeypatch, tmp_path)
+        a = (
+            tmp_path
+            / "Packages"
+            / "Anthropic.ClaudeDesktop_h6f0761"
+            / "LocalCache"
+            / "Roaming"
+            / "Claude"
+        )
+        b = (
+            tmp_path
+            / "Packages"
+            / "Claude_pzs8sxrjxfjjc"
+            / "LocalCache"
+            / "Roaming"
+            / "Claude"
+        )
+        a.mkdir(parents=True)
+        b.mkdir(parents=True)
+        result = windows_msix_config_candidates()
+        assert result == [
+            a / "claude_desktop_config.json",
+            b / "claude_desktop_config.json",
+        ]
+
+    def test_match_without_claude_dir_excluded(self, monkeypatch, tmp_path):
+        self._setup_windows(monkeypatch, tmp_path)
+        # Package matches but LocalCache\Roaming\Claude doesn't exist
+        (tmp_path / "Packages" / "Claude_xyz").mkdir(parents=True)
+        assert windows_msix_config_candidates() == []
 
 
 class TestBackupPath:
