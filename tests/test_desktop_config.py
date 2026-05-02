@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from cdcasasagi.desktop_config import (
+    AmbiguousConfigError,
     BackupError,
     BackupNotFoundError,
     ConfigError,
@@ -48,6 +49,80 @@ class TestConfigPath:
         monkeypatch.setenv("APPDATA", "/fake/appdata")
         result = config_path()
         assert result == Path("/fake/appdata/Claude/claude_desktop_config.json")
+
+    def _setup_windows_msix(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("CLAUDE_DESKTOP_CONFIG", raising=False)
+        monkeypatch.setattr(
+            "cdcasasagi.desktop_config.platform.system", lambda: "Windows"
+        )
+        appdata = tmp_path / "appdata"
+        local = tmp_path / "local"
+        appdata.mkdir()
+        local.mkdir()
+        monkeypatch.setenv("APPDATA", str(appdata))
+        monkeypatch.setenv("LOCALAPPDATA", str(local))
+        return appdata, local
+
+    def _make_msix_dir(self, local: Path, pkg: str) -> Path:
+        d = local / "Packages" / pkg / "LocalCache" / "Roaming" / "Claude"
+        d.mkdir(parents=True)
+        return d / "claude_desktop_config.json"
+
+    def test_windows_no_msix_candidates(self, monkeypatch, tmp_path):
+        appdata, _ = self._setup_windows_msix(monkeypatch, tmp_path)
+        assert config_path() == appdata / "Claude" / "claude_desktop_config.json"
+
+    def test_windows_one_msix_candidate_file_missing(self, monkeypatch, tmp_path):
+        _, local = self._setup_windows_msix(monkeypatch, tmp_path)
+        cfg = self._make_msix_dir(local, "Claude_pzs8sxrjxfjjc")
+        assert config_path() == cfg
+
+    def test_windows_one_msix_candidate_file_exists(self, monkeypatch, tmp_path):
+        _, local = self._setup_windows_msix(monkeypatch, tmp_path)
+        cfg = self._make_msix_dir(local, "Claude_pzs8sxrjxfjjc")
+        cfg.write_text("{}")
+        assert config_path() == cfg
+
+    def test_windows_two_candidates_one_file_exists(self, monkeypatch, tmp_path):
+        _, local = self._setup_windows_msix(monkeypatch, tmp_path)
+        a = self._make_msix_dir(local, "Anthropic.ClaudeDesktop_h6f0761")
+        b = self._make_msix_dir(local, "Claude_pzs8sxrjxfjjc")
+        b.write_text("{}")
+        # Only b has a real file; a is just the directory.
+        assert not a.exists()
+        assert config_path() == b
+
+    def test_windows_two_candidates_no_files_exist(self, monkeypatch, tmp_path):
+        _, local = self._setup_windows_msix(monkeypatch, tmp_path)
+        a = self._make_msix_dir(local, "Anthropic.ClaudeDesktop_h6f0761")
+        b = self._make_msix_dir(local, "Claude_pzs8sxrjxfjjc")
+        with pytest.raises(AmbiguousConfigError) as exc:
+            config_path()
+        msg = str(exc.value)
+        assert str(a) in msg
+        assert str(b) in msg
+        assert "CLAUDE_DESKTOP_CONFIG" in msg
+
+    def test_windows_two_candidates_both_files_exist(self, monkeypatch, tmp_path):
+        _, local = self._setup_windows_msix(monkeypatch, tmp_path)
+        a = self._make_msix_dir(local, "Anthropic.ClaudeDesktop_h6f0761")
+        b = self._make_msix_dir(local, "Claude_pzs8sxrjxfjjc")
+        a.write_text("{}")
+        b.write_text("{}")
+        with pytest.raises(AmbiguousConfigError) as exc:
+            config_path()
+        msg = str(exc.value)
+        assert str(a) in msg
+        assert str(b) in msg
+        assert "CLAUDE_DESKTOP_CONFIG" in msg
+
+    def test_env_override_wins_over_msix(self, monkeypatch, tmp_path):
+        _, local = self._setup_windows_msix(monkeypatch, tmp_path)
+        self._make_msix_dir(local, "Anthropic.ClaudeDesktop_h6f0761")
+        self._make_msix_dir(local, "Claude_pzs8sxrjxfjjc")
+        override = tmp_path / "custom.json"
+        monkeypatch.setenv("CLAUDE_DESKTOP_CONFIG", str(override))
+        assert config_path() == override
 
 
 class TestWindowsMsixConfigCandidates:
