@@ -100,7 +100,7 @@ def _orphan_appdata_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
 
     try:
         config = desktop_config.load_config(appdata_path)
-    except desktop_config.ConfigError:
+    except (desktop_config.ConfigError, OSError):
         detail = (
             f"Orphan config at {appdata_path} is present but unreadable.\n"
             f"Active config: {cfg_path}\n"

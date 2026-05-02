@@ -221,6 +221,24 @@ class TestDoctor:
         assert "unreadable" in result.output
         assert str(appdata_cfg) in result.output
 
+    def test_orphan_warn_when_read_raises_oserror(self, monkeypatch, tmp_path):
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        appdata_cfg.write_text('{"mcpServers": {}}')
+
+        original_read_text = type(appdata_cfg).read_text
+
+        def fake_read_text(self, *args, **kwargs):
+            if self == appdata_cfg:
+                raise PermissionError("locked")
+            return original_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(type(appdata_cfg), "read_text", fake_read_text)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN] Orphan APPDATA config:" in result.output
+        assert "unreadable" in result.output
+
     def test_orphan_no_warn_when_non_msix_install(self, monkeypatch, tmp_path):
         appdata_cfg, _ = self._setup_windows_doctor(
             monkeypatch, tmp_path, with_msix_candidate=False
