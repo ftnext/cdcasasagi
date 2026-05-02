@@ -13,6 +13,10 @@ class ConfigError(Exception):
     pass
 
 
+class AmbiguousConfigError(ConfigError):
+    pass
+
+
 class EntryExistsError(Exception):
     pass
 
@@ -39,7 +43,21 @@ def config_path() -> Path:
         return Path(env)
     if platform.system() == "Windows":
         appdata = os.environ.get("APPDATA", "")
-        return Path(appdata) / "Claude" / "claude_desktop_config.json"
+        appdata_path = Path(appdata) / "Claude" / "claude_desktop_config.json"
+        candidates = windows_msix_config_candidates()
+        if not candidates:
+            return appdata_path
+        if len(candidates) == 1:
+            return candidates[0]
+        existing = [c for c in candidates if c.is_file()]
+        if len(existing) == 1:
+            return existing[0]
+        raise AmbiguousConfigError(
+            format_msix_guidance(
+                "Multiple Claude Desktop MSIX packages were detected.",
+                candidates,
+            )
+        )
     return (
         Path.home()
         / "Library"
@@ -47,6 +65,26 @@ def config_path() -> Path:
         / "Claude"
         / "claude_desktop_config.json"
     )
+
+
+def format_msix_guidance(header: str, candidates: list[Path]) -> str:
+    lines = [header, "Candidate path(s):"]
+    for c in candidates:
+        lines.append(f"  {c}")
+    lines.append("")
+    lines.append(
+        "Set CLAUDE_DESKTOP_CONFIG to the path Claude Desktop is actually using:"
+    )
+    lines.append(f"  CLAUDE_DESKTOP_CONFIG={candidates[0]}")
+    lines.append("")
+    lines.append(
+        "Confirm via Claude Desktop: Settings > Developer > Edit Config; the "
+        "editor's title bar shows the path. On MSIX installs Edit Config may "
+        "itself open the wrong (%APPDATA%) path "
+        "(see anthropics/claude-code#26073), so cross-check against the "
+        "candidate list above."
+    )
+    return "\n".join(lines)
 
 
 def windows_msix_config_candidates() -> list[Path]:

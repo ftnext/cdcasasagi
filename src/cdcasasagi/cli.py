@@ -38,22 +38,26 @@ def doctor() -> None:
     except mcp_proxy.McpProxyNotFoundError:
         results.append(("mcp-proxy", "fail", "not found"))
 
-    cfg_path = desktop_config.config_path()
-    if cfg_path.is_file():
-        results.append(("Config file", "pass", str(cfg_path)))
+    try:
+        cfg_path = desktop_config.config_path()
+    except desktop_config.AmbiguousConfigError as e:
+        results.append(("Config file", "fail", str(e)))
     else:
-        results.append(("Config file", "fail", f"not found: {cfg_path}"))
+        if cfg_path.is_file():
+            results.append(("Config file", "pass", str(cfg_path)))
+        else:
+            results.append(("Config file", "fail", f"not found: {cfg_path}"))
 
-    cfg_dir = cfg_path.parent
-    if os.access(cfg_dir, os.W_OK):
-        results.append(("Config directory", "pass", str(cfg_dir)))
-    else:
-        results.append(("Config directory", "fail", f"not writable: {cfg_dir}"))
+        cfg_dir = cfg_path.parent
+        if os.access(cfg_dir, os.W_OK):
+            results.append(("Config directory", "pass", str(cfg_dir)))
+        else:
+            results.append(("Config directory", "fail", f"not writable: {cfg_dir}"))
 
-    if _platform.system() == "Windows":
-        msix_row = _msix_doctor_row(cfg_path)
-        if msix_row is not None:
-            results.append(msix_row)
+        if _platform.system() == "Windows":
+            msix_row = _msix_doctor_row(cfg_path)
+            if msix_row is not None:
+                results.append(msix_row)
 
     typer.echo(output.doctor_message(results))
     if any(status == "fail" for _, status, _ in results):
@@ -61,8 +65,6 @@ def doctor() -> None:
 
 
 def _msix_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
-    if os.environ.get("CLAUDE_DESKTOP_CONFIG"):
-        return None
     local = os.environ.get("LOCALAPPDATA", "")
     if local:
         try:
@@ -73,31 +75,18 @@ def _msix_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
     candidates = desktop_config.windows_msix_config_candidates()
     if not candidates:
         return None
-    lines = [
+    detail = desktop_config.format_msix_guidance(
         "Claude Desktop on MSIX reads config from a virtualized path.",
-        "Candidate path(s):",
-    ]
-    for c in candidates:
-        lines.append(f"  {c}")
-    lines.append("")
-    lines.append("Set CLAUDE_DESKTOP_CONFIG to the path Claude Desktop actually reads:")
-    lines.append(f"  CLAUDE_DESKTOP_CONFIG={candidates[0]}")
-    lines.append("")
-    lines.append(
-        "Confirm via Claude Desktop: Settings > Developer > Edit Config; the "
-        "editor's title bar shows the path. On MSIX installs Edit Config may "
-        "itself open the wrong (%APPDATA%) path "
-        "(see anthropics/claude-code#26073), so cross-check against the "
-        "candidate list above."
+        candidates,
     )
-    return ("Claude Desktop MSIX path", "warn", "\n".join(lines))
+    return ("Claude Desktop MSIX path", "warn", detail)
 
 
 @app.command(name="list")
 def list_cmd() -> None:
     """List cdcasasagi-managed MCP servers as 'name : url'."""
-    cfg_path = desktop_config.config_path()
     try:
+        cfg_path = desktop_config.config_path()
         config = desktop_config.load_config(cfg_path)
     except desktop_config.ConfigError as e:
         typer.echo(str(e), err=True)
@@ -143,9 +132,8 @@ def add(
         typer.echo(str(e), err=True)
         raise typer.Exit(code=1)
 
-    cfg_path = desktop_config.config_path()
-
     try:
+        cfg_path = desktop_config.config_path()
         current_config = desktop_config.load_config(cfg_path)
     except desktop_config.ConfigError as e:
         typer.echo(str(e), err=True)
@@ -177,9 +165,8 @@ def delete(
     url: str = typer.Argument(..., help="URL of the mcpServers entry to remove"),
     write: bool = typer.Option(False, help="Actually write to the file"),
 ) -> None:
-    cfg_path = desktop_config.config_path()
-
     try:
+        cfg_path = desktop_config.config_path()
         current_config = desktop_config.load_config(cfg_path)
     except desktop_config.ConfigError as e:
         typer.echo(str(e), err=True)
@@ -201,7 +188,11 @@ def delete(
 
 @app.command()
 def revert() -> None:
-    cfg_path = desktop_config.config_path()
+    try:
+        cfg_path = desktop_config.config_path()
+    except desktop_config.ConfigError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
 
     try:
         backup_config = desktop_config.load_backup(cfg_path)
@@ -467,8 +458,8 @@ def import_cmd(
 
     resolved = _resolve_import_entries(raw_entries, proxy_path)
 
-    cfg_path = desktop_config.config_path()
     try:
+        cfg_path = desktop_config.config_path()
         current_config = desktop_config.load_config(cfg_path)
     except desktop_config.ConfigError as e:
         typer.echo(str(e), err=True)

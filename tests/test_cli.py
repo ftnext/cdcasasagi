@@ -124,21 +124,34 @@ class TestDoctor:
 
         return appdata_cfg, msix_cfg
 
-    def test_msix_warn_when_appdata_path(self, monkeypatch, tmp_path):
-        _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+    def test_msix_warn_when_env_pins_appdata_path(self, monkeypatch, tmp_path):
+        """User explicitly set CLAUDE_DESKTOP_CONFIG to %APPDATA%\\... despite
+        an MSIX candidate existing — the WARN row should still fire.
+        """
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        monkeypatch.setenv("CLAUDE_DESKTOP_CONFIG", str(appdata_cfg))
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
         assert "[WARN] Claude Desktop MSIX path:" in result.output
         assert str(msix_cfg) in result.output
         assert "CLAUDE_DESKTOP_CONFIG=" in result.output
 
-    def test_msix_no_warn_when_env_var_set(self, monkeypatch, tmp_path):
+    def test_msix_no_warn_when_env_var_set_to_msix(self, monkeypatch, tmp_path):
         _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
         msix_cfg.write_text('{"mcpServers": {}}')
         monkeypatch.setenv("CLAUDE_DESKTOP_CONFIG", str(msix_cfg))
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
         assert "[WARN]" not in result.output
+
+    def test_msix_auto_selected_no_warn(self, monkeypatch, tmp_path):
+        """Single MSIX candidate -> config_path() auto-selects it, no WARN."""
+        _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN]" not in result.output
+        assert str(msix_cfg) in result.output
 
     def test_msix_no_warn_when_no_candidates(self, monkeypatch, tmp_path):
         self._setup_windows_doctor(monkeypatch, tmp_path, with_msix_candidate=False)
@@ -147,11 +160,74 @@ class TestDoctor:
         assert "[WARN]" not in result.output
 
     def test_doctor_exits_zero_with_only_warnings(self, monkeypatch, tmp_path):
-        self._setup_windows_doctor(monkeypatch, tmp_path)
+        appdata_cfg, _ = self._setup_windows_doctor(monkeypatch, tmp_path)
+        monkeypatch.setenv("CLAUDE_DESKTOP_CONFIG", str(appdata_cfg))
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
         assert "[FAIL]" not in result.output
         assert "All checks passed (1 warning)." in result.output
+
+
+class TestAmbiguousMsixConfig:
+    """`config_path()` raises AmbiguousConfigError when multiple MSIX packages
+    each have a config file. Verify each command surfaces the error message
+    and the doctor still runs the mcp-proxy check.
+    """
+
+    def _setup(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("CLAUDE_DESKTOP_CONFIG", raising=False)
+        appdata = tmp_path / "appdata"
+        local = tmp_path / "local"
+        appdata.mkdir()
+        local.mkdir()
+        monkeypatch.setenv("APPDATA", str(appdata))
+        monkeypatch.setenv("LOCALAPPDATA", str(local))
+        monkeypatch.setattr("platform.system", lambda: "Windows")
+        monkeypatch.setattr(
+            "cdcasasagi.desktop_config.platform.system", lambda: "Windows"
+        )
+        cfgs = []
+        for pkg in ("Anthropic.ClaudeDesktop_h6f0761", "Claude_pzs8sxrjxfjjc"):
+            d = local / "Packages" / pkg / "LocalCache" / "Roaming" / "Claude"
+            d.mkdir(parents=True)
+            cfg = d / "claude_desktop_config.json"
+            cfg.write_text('{"mcpServers": {}}')
+            cfgs.append(cfg)
+        fake_proxy = tmp_path / "bin" / "mcp-proxy"
+        fake_proxy.parent.mkdir()
+        fake_proxy.touch()
+        fake_python = tmp_path / "bin" / "python"
+        monkeypatch.setattr("cdcasasagi.mcp_proxy.sys.executable", str(fake_python))
+        return cfgs
+
+    def test_doctor_reports_fail_and_continues(self, monkeypatch, tmp_path):
+        cfgs = self._setup(monkeypatch, tmp_path)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 1
+        assert "[FAIL] Config file:" in result.output
+        for cfg in cfgs:
+            assert str(cfg) in result.output
+        assert "CLAUDE_DESKTOP_CONFIG" in result.output
+        # mcp-proxy check still ran
+        assert "[PASS] mcp-proxy:" in result.output
+
+    def test_add_exits_with_env_var_hint(self, monkeypatch, tmp_path):
+        cfgs = self._setup(monkeypatch, tmp_path)
+        result = runner.invoke(app, ["add", "https://mcp.notion.com/mcp"])
+        assert result.exit_code == 1
+        assert "CLAUDE_DESKTOP_CONFIG" in result.output
+        for cfg in cfgs:
+            assert str(cfg) in result.output
+
+    def test_import_exits_with_env_var_hint(self, monkeypatch, tmp_path):
+        cfgs = self._setup(monkeypatch, tmp_path)
+        input_file = tmp_path / "servers.jsonl"
+        input_file.write_text('{"url": "https://mcp.notion.com/mcp"}\n')
+        result = runner.invoke(app, ["import", str(input_file)])
+        assert result.exit_code == 1
+        assert "CLAUDE_DESKTOP_CONFIG" in result.output
+        for cfg in cfgs:
+            assert str(cfg) in result.output
 
 
 class TestList:
