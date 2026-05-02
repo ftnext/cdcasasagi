@@ -49,6 +49,28 @@ def config_path() -> Path:
     )
 
 
+def windows_msix_config_candidates() -> list[Path]:
+    """Return claude_desktop_config.json paths under the MSIX virtualized
+    Packages directory, sorted for determinism. Empty list on non-Windows,
+    missing %LOCALAPPDATA%, or no match.
+    """
+    if platform.system() != "Windows":
+        return []
+    local = os.environ.get("LOCALAPPDATA", "")
+    if not local:
+        return []
+    packages = Path(local) / "Packages"
+    if not packages.is_dir():
+        return []
+    candidates: list[Path] = []
+    for pkg in packages.glob("*Claude*"):
+        claude_dir = pkg / "LocalCache" / "Roaming" / "Claude"
+        if claude_dir.is_dir():
+            candidates.append(claude_dir / "claude_desktop_config.json")
+    candidates.sort()
+    return candidates
+
+
 def backup_path(path: Path) -> Path:
     return path.with_suffix(path.suffix + ".bak")
 
