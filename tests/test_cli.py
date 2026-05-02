@@ -167,6 +167,81 @@ class TestDoctor:
         assert "[FAIL]" not in result.output
         assert "All checks passed (1 warning)." in result.output
 
+    def test_orphan_no_warn_when_file_absent(self, monkeypatch, tmp_path):
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        appdata_cfg.unlink()
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Orphan APPDATA config" not in result.output
+
+    def test_orphan_warn_lists_entries_and_active_path(self, monkeypatch, tmp_path):
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        appdata_cfg.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": {"command": "x", "args": []},
+                        "github": {"command": "y", "args": []},
+                    }
+                }
+            )
+        )
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN] Orphan APPDATA config:" in result.output
+        assert str(appdata_cfg) in result.output
+        assert "github, notion" in result.output
+        assert str(msix_cfg) in result.output
+
+    def test_orphan_no_warn_when_mcp_servers_empty(self, monkeypatch, tmp_path):
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        appdata_cfg.write_text('{"mcpServers": {}}')
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Orphan APPDATA config" not in result.output
+
+    def test_orphan_no_warn_when_mcp_servers_key_missing(self, monkeypatch, tmp_path):
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        appdata_cfg.write_text("{}")
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Orphan APPDATA config" not in result.output
+
+    def test_orphan_warn_when_unreadable(self, monkeypatch, tmp_path):
+        appdata_cfg, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        appdata_cfg.write_text("not json {")
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN] Orphan APPDATA config:" in result.output
+        assert "unreadable" in result.output
+        assert str(appdata_cfg) in result.output
+
+    def test_orphan_no_warn_when_non_msix_install(self, monkeypatch, tmp_path):
+        appdata_cfg, _ = self._setup_windows_doctor(
+            monkeypatch, tmp_path, with_msix_candidate=False
+        )
+        appdata_cfg.write_text(
+            json.dumps({"mcpServers": {"notion": {"command": "x", "args": []}}})
+        )
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Orphan APPDATA config" not in result.output
+
+    def test_orphan_no_warn_when_env_pins_appdata(self, monkeypatch, tmp_path):
+        appdata_cfg, _ = self._setup_windows_doctor(monkeypatch, tmp_path)
+        appdata_cfg.write_text(
+            json.dumps({"mcpServers": {"notion": {"command": "x", "args": []}}})
+        )
+        monkeypatch.setenv("CLAUDE_DESKTOP_CONFIG", str(appdata_cfg))
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Orphan APPDATA config" not in result.output
+
 
 class TestAmbiguousMsixConfig:
     """`config_path()` raises AmbiguousConfigError when multiple MSIX packages

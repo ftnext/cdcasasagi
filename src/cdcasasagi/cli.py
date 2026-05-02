@@ -58,6 +58,9 @@ def doctor() -> None:
             msix_row = _msix_doctor_row(cfg_path)
             if msix_row is not None:
                 results.append(msix_row)
+            orphan_row = _orphan_appdata_doctor_row(cfg_path)
+            if orphan_row is not None:
+                results.append(orphan_row)
 
     typer.echo(output.doctor_message(results))
     if any(status == "fail" for _, status, _ in results):
@@ -80,6 +83,45 @@ def _msix_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
         candidates,
     )
     return ("Claude Desktop MSIX path", "warn", detail)
+
+
+def _orphan_appdata_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
+    local = os.environ.get("LOCALAPPDATA", "")
+    if not local:
+        return None
+    try:
+        cfg_path.resolve().relative_to((Path(local) / "Packages").resolve())
+    except ValueError:
+        return None
+
+    appdata_path = desktop_config.appdata_config_path()
+    if appdata_path is None or not appdata_path.is_file():
+        return None
+
+    try:
+        config = desktop_config.load_config(appdata_path)
+    except desktop_config.ConfigError:
+        detail = (
+            f"Orphan config at {appdata_path} is present but unreadable.\n"
+            f"Active config: {cfg_path}\n"
+            "Claude Desktop reads only the active config. Inspect the orphan "
+            "file manually, then delete it once you have migrated any entries."
+        )
+        return ("Orphan APPDATA config", "warn", detail)
+
+    servers = config.get("mcpServers")
+    if not isinstance(servers, dict) or not servers:
+        return None
+
+    names = ", ".join(sorted(servers.keys()))
+    detail = (
+        f"Orphan config at {appdata_path} has mcpServers entries: {names}\n"
+        f"Active config: {cfg_path} (Claude Desktop reads only this file).\n"
+        "Re-add the entries against the active config "
+        "(`cdcasasagi add ...` or `cdcasasagi import ...`), "
+        "then delete the orphan file."
+    )
+    return ("Orphan APPDATA config", "warn", detail)
 
 
 @app.command(name="list")

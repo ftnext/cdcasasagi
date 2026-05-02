@@ -87,6 +87,16 @@ def format_msix_guidance(header: str, candidates: list[Path]) -> str:
     return "\n".join(lines)
 
 
+def appdata_config_path() -> Path | None:
+    """Return ``%APPDATA%\\Claude\\claude_desktop_config.json`` on Windows, else None."""
+    if platform.system() != "Windows":
+        return None
+    appdata = os.environ.get("APPDATA", "")
+    if not appdata:
+        return None
+    return Path(appdata) / "Claude" / "claude_desktop_config.json"
+
+
 def windows_msix_config_candidates() -> list[Path]:
     """Return claude_desktop_config.json paths under the MSIX virtualized
     Packages directory, sorted for determinism. Empty list on non-Windows,
