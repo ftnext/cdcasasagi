@@ -7,6 +7,9 @@
 > While [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy) is a great and easy-to-use tool, the scenarios where it is still necessary are likely limited now that official support exists.
 > Additionally, custom connectors work not only with Claude Desktop but also with the web version of Claude, once configured.
 
+> [!NOTE]
+> Windows users: see [Windows notes](#windows-notes) for MSIX-specific config path behavior.
+
 ## Install
 
 ```
@@ -154,3 +157,18 @@ cdcasasagi revert
 ```
 cdcasasagi version
 ```
+
+## Windows notes
+
+cdcasasagi locates Claude Desktop's config in this order:
+
+1. `CLAUDE_DESKTOP_CONFIG` environment variable, if set.
+2. The MSIX virtualized path (`%LOCALAPPDATA%\Packages\<Claude package>\LocalCache\Roaming\Claude\claude_desktop_config.json`), if any MSIX install is detected.
+3. `%APPDATA%\Claude\claude_desktop_config.json` otherwise.
+
+When multiple MSIX packages are detected, cdcasasagi cannot guess which one Claude Desktop is actually using and refuses to proceed. Confirm the path via **Settings > Developer > Edit Config** in Claude Desktop, then set `CLAUDE_DESKTOP_CONFIG` to that path.
+
+Run `cdcasasagi doctor` to check the resolved config path. On Windows it also surfaces two MSIX-specific situations:
+
+- The active config is on the MSIX virtualized path (informational — cdcasasagi handles it automatically).
+- An orphan `%APPDATA%\Claude\claude_desktop_config.json` exists alongside the active MSIX config. Claude Desktop ignores the orphan, so any `mcpServers` entries there are dead. Re-add them against the active config and delete the orphan.
