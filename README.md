@@ -126,6 +126,21 @@ cdcasasagi validate-import -
 
 Once the JSONL validates, feed the same content to `import - --write` to apply it.
 
+### doctor
+
+Check that cdcasasagi can find what it needs to operate:
+
+```
+cdcasasagi doctor
+```
+
+This reports the resolved `mcp-proxy` binary, the active Claude Desktop config path, and whether the config directory is writable. The command exits with a non-zero status when any check fails, so it can be used in scripts.
+
+On Windows, `doctor` also surfaces two MSIX-specific warnings:
+
+- **Claude Desktop MSIX path** — the active config lives under the MSIX virtualized path (`%LOCALAPPDATA%\Packages\...\LocalCache\Roaming\Claude\...`). cdcasasagi reads and writes that path automatically; the warning is informational.
+- **Orphan APPDATA config** — a leftover `%APPDATA%\Claude\claude_desktop_config.json` is present alongside the MSIX-virtualized active config. Claude Desktop reads only the active file, so any `mcpServers` entries in the orphan are ignored. Re-add them against the active config, then delete the orphan.
+
 ### revert
 
 Restore the config from the `.bak` backup created by the last `--write`:
