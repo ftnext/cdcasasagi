@@ -278,6 +278,42 @@ class TestDoctor:
         assert result.exit_code == 0
         assert "Orphan APPDATA config" not in result.output
 
+    def test_appdata_python_warn_when_python_under_appdata(self, monkeypatch, tmp_path):
+        _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        # Place Python (and mcp-proxy) under %APPDATA%\... to mimic uv's
+        # default install location on Windows.
+        appdata_python_dir = tmp_path / "appdata" / "uv" / "python"
+        appdata_python_dir.mkdir(parents=True)
+        fake_python = appdata_python_dir / "python.exe"
+        fake_python.touch()
+        (appdata_python_dir / "mcp-proxy").touch()
+        monkeypatch.setattr("cdcasasagi.mcp_proxy.sys.executable", str(fake_python))
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "[WARN] Python install path:" in result.output
+        assert "%APPDATA%" in result.output
+        assert "UV_PYTHON_INSTALL_DIR" in result.output
+        assert "issues/57" in result.output
+
+    def test_appdata_python_no_warn_when_python_outside_appdata(
+        self, monkeypatch, tmp_path
+    ):
+        _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        # Default fixture places Python under tmp_path/bin, outside %APPDATA%.
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Python install path" not in result.output
+
+    def test_appdata_python_no_warn_when_appdata_unset(self, monkeypatch, tmp_path):
+        _, msix_cfg = self._setup_windows_doctor(monkeypatch, tmp_path)
+        msix_cfg.write_text('{"mcpServers": {}}')
+        monkeypatch.delenv("APPDATA", raising=False)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Python install path" not in result.output
+
 
 class TestAmbiguousMsixConfig:
     """`config_path()` raises AmbiguousConfigError when multiple MSIX packages

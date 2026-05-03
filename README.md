@@ -146,10 +146,11 @@ cdcasasagi doctor
 
 This reports the resolved `mcp-proxy` binary, the active Claude Desktop config path, and whether the config directory is writable. The command exits with a non-zero status when any check fails, so it can be used in scripts.
 
-On Windows, `doctor` also surfaces two MSIX-specific warnings:
+On Windows, `doctor` also surfaces these warnings:
 
 - **Claude Desktop MSIX path** — the active config is **not** under the MSIX virtualized path, but a Claude MSIX install was detected. Claude Desktop on MSIX reads from the virtualized path (`%LOCALAPPDATA%\Packages\...\LocalCache\Roaming\Claude\...`), so edits to the current path may have no effect. Set `CLAUDE_DESKTOP_CONFIG` to the candidate path shown in the warning.
 - **Orphan APPDATA config** — the active config is on the MSIX virtualized path, and a leftover `%APPDATA%\Claude\claude_desktop_config.json` is also present. Claude Desktop reads only the active file, so any `mcpServers` entries in the orphan are ignored. Re-add them against the active config, then delete the orphan.
+- **Python install path** — the Python interpreter that runs cdcasasagi is under `%APPDATA%\Roaming`, where some Windows security policies block execution. The warning shows a `UV_PYTHON_INSTALL_DIR` workaround that reinstalls Python under `%LOCALAPPDATA%`. See [#57](https://github.com/ftnext/cdcasasagi/issues/57) for background.
 
 ### revert
 
@@ -175,7 +176,8 @@ cdcasasagi locates Claude Desktop's config in this order:
 
 When multiple MSIX package directories are detected, cdcasasagi first tries to disambiguate by checking which candidates actually contain a `claude_desktop_config.json` — a common stale-install scenario (several package folders but only one real config) is handled automatically. cdcasasagi only refuses to proceed when more than one candidate file exists and the active one cannot be guessed. In that case, confirm the path via **Settings > Developer > Edit Config** in Claude Desktop, then set `CLAUDE_DESKTOP_CONFIG` to that path.
 
-Run `cdcasasagi doctor` to check the resolved config path. On Windows it also surfaces two MSIX-specific situations:
+Run `cdcasasagi doctor` to check the resolved config path. On Windows it also surfaces these situations:
 
 - The active config is on `%APPDATA%` while a Claude MSIX install is detected. Claude Desktop on MSIX reads the virtualized path, so `%APPDATA%` edits may not apply — point `CLAUDE_DESKTOP_CONFIG` at the MSIX path shown.
 - An orphan `%APPDATA%\Claude\claude_desktop_config.json` exists alongside the active MSIX config. Claude Desktop ignores the orphan, so any `mcpServers` entries there are dead. Re-add them against the active config and delete the orphan.
+- The Python interpreter that runs cdcasasagi sits under `%APPDATA%\Roaming` (uv's default install location). Some Windows security policies block executing binaries from there, which can prevent cdcasasagi and `mcp-proxy` from running. The warning shows a one-time fix using `UV_PYTHON_INSTALL_DIR` to install Python under `%LOCALAPPDATA%` instead. See [#57](https://github.com/ftnext/cdcasasagi/issues/57) for the upstream context.

@@ -61,6 +61,9 @@ def doctor() -> None:
             orphan_row = _orphan_appdata_doctor_row(cfg_path)
             if orphan_row is not None:
                 results.append(orphan_row)
+            python_row = _appdata_roaming_python_doctor_row()
+            if python_row is not None:
+                results.append(python_row)
 
     typer.echo(output.doctor_message(results))
     if any(status == "fail" for _, status, _ in results):
@@ -124,6 +127,28 @@ def _orphan_appdata_doctor_row(cfg_path: Path) -> tuple[str, str, str] | None:
         "then delete the orphan file."
     )
     return ("Orphan APPDATA config", "warn", detail)
+
+
+def _appdata_roaming_python_doctor_row() -> tuple[str, str, str] | None:
+    appdata = os.environ.get("APPDATA", "")
+    if not appdata:
+        return None
+    python_path = Path(sys.executable)
+    try:
+        python_path.resolve().relative_to(Path(appdata).resolve())
+    except ValueError:
+        return None
+    detail = (
+        f"Python interpreter is under %APPDATA% ({python_path}).\n"
+        "Some Windows security policies block executing binaries from "
+        "%APPDATA%\\Roaming, which can prevent cdcasasagi and mcp-proxy "
+        "from running.\n"
+        "Workaround: install Python under %LOCALAPPDATA% via uv:\n"
+        '  $env:UV_PYTHON_INSTALL_DIR = "$env:LOCALAPPDATA\\uv\\python"\n'
+        "  uv tool install cdcasasagi --reinstall\n"
+        "See https://github.com/ftnext/cdcasasagi/issues/57 for details."
+    )
+    return ("Python install path", "warn", detail)
 
 
 @app.command(name="list")
