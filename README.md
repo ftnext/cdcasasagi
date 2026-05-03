@@ -148,8 +148,8 @@ This reports the resolved `mcp-proxy` binary, the active Claude Desktop config p
 
 On Windows, `doctor` also surfaces two MSIX-specific warnings:
 
-- **Claude Desktop MSIX path** — the active config lives under the MSIX virtualized path (`%LOCALAPPDATA%\Packages\...\LocalCache\Roaming\Claude\...`). cdcasasagi reads and writes that path automatically; the warning is informational.
-- **Orphan APPDATA config** — a leftover `%APPDATA%\Claude\claude_desktop_config.json` is present alongside the MSIX-virtualized active config. Claude Desktop reads only the active file, so any `mcpServers` entries in the orphan are ignored. Re-add them against the active config, then delete the orphan.
+- **Claude Desktop MSIX path** — the active config is **not** under the MSIX virtualized path, but a Claude MSIX install was detected. Claude Desktop on MSIX reads from the virtualized path (`%LOCALAPPDATA%\Packages\...\LocalCache\Roaming\Claude\...`), so edits to the current path may have no effect. Set `CLAUDE_DESKTOP_CONFIG` to the candidate path shown in the warning.
+- **Orphan APPDATA config** — the active config is on the MSIX virtualized path, and a leftover `%APPDATA%\Claude\claude_desktop_config.json` is also present. Claude Desktop reads only the active file, so any `mcpServers` entries in the orphan are ignored. Re-add them against the active config, then delete the orphan.
 
 ### revert
 
@@ -177,5 +177,5 @@ When multiple MSIX package directories are detected, cdcasasagi first tries to d
 
 Run `cdcasasagi doctor` to check the resolved config path. On Windows it also surfaces two MSIX-specific situations:
 
-- The active config is on the MSIX virtualized path (informational — cdcasasagi handles it automatically).
+- The active config is on `%APPDATA%` while a Claude MSIX install is detected. Claude Desktop on MSIX reads the virtualized path, so `%APPDATA%` edits may not apply — point `CLAUDE_DESKTOP_CONFIG` at the MSIX path shown.
 - An orphan `%APPDATA%\Claude\claude_desktop_config.json` exists alongside the active MSIX config. Claude Desktop ignores the orphan, so any `mcpServers` entries there are dead. Re-add them against the active config and delete the orphan.
