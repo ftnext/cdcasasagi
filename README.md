@@ -173,7 +173,7 @@ cdcasasagi locates Claude Desktop's config in this order:
 2. The MSIX virtualized path (`%LOCALAPPDATA%\Packages\<Claude package>\LocalCache\Roaming\Claude\claude_desktop_config.json`), if any MSIX install is detected.
 3. `%APPDATA%\Claude\claude_desktop_config.json` otherwise.
 
-When multiple MSIX packages are detected, cdcasasagi cannot guess which one Claude Desktop is actually using and refuses to proceed. Confirm the path via **Settings > Developer > Edit Config** in Claude Desktop, then set `CLAUDE_DESKTOP_CONFIG` to that path.
+When multiple MSIX package directories are detected, cdcasasagi first tries to disambiguate by checking which candidates actually contain a `claude_desktop_config.json` — a common stale-install scenario (several package folders but only one real config) is handled automatically. cdcasasagi only refuses to proceed when more than one candidate file exists and the active one cannot be guessed. In that case, confirm the path via **Settings > Developer > Edit Config** in Claude Desktop, then set `CLAUDE_DESKTOP_CONFIG` to that path.
 
 Run `cdcasasagi doctor` to check the resolved config path. On Windows it also surfaces two MSIX-specific situations:
 
