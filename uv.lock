@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.10"
 
 [options]
-exclude-newer = "2026-04-30T01:56:32.055573Z"
+exclude-newer = "2026-04-30T03:18:43.014949Z"
 exclude-newer-span = "P3D"
 
 [[package]]
@@ -70,7 +70,7 @@ wheels = [
 
 [[package]]
 name = "cdcasasagi"
-version = "0.6.0"
+version = "0.6.1"
 source = { editable = "." }
 dependencies = [
     { name = "mcp-proxy" },
