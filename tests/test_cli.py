@@ -1769,6 +1769,24 @@ class TestEject:
         assert line.isascii(), f"stdout should be ASCII-only, got: {line!r}"
         assert json.loads(line) == {"url": url, "name": "鵲"}
 
+    def test_eject_emits_no_jsonl_when_write_fails(self, config_env, monkeypatch):
+        # If write_config raises, stdout must stay empty so a scripted flow
+        # piping `eject` into `import` does not re-import against the still-
+        # present entries on a write failure.
+        config_file, fake_proxy = config_env
+        notion_url = "https://mcp.notion.com/mcp"
+        original = {"mcpServers": {"notion": self._managed(fake_proxy, notion_url)}}
+        config_file.write_text(json.dumps(original))
+
+        def boom(*args, **kwargs):
+            raise OSError("disk full")
+
+        monkeypatch.setattr("cdcasasagi.desktop_config.write_config", boom)
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code != 0
+        assert result.stdout == ""
+        assert json.loads(config_file.read_text()) == original
+
     def test_eject_no_op_when_no_managed(self, config_env):
         config_file, _ = config_env
         config_file.write_text(

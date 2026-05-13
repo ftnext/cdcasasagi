@@ -295,12 +295,15 @@ def eject() -> None:
         typer.echo(output.eject_noop_message(cfg_path), err=True)
         return
 
-    typer.echo(_format_eject_jsonl(managed))
-
+    # Build the JSONL up-front but emit it only after write_config succeeds,
+    # so a failing write never leaves a "successful" JSONL on stdout that a
+    # script could pipe back into `import` against the still-present entries.
+    jsonl_text = _format_eject_jsonl(managed)
     cleaned = desktop_config.remove_managed_entries(
         current_config, [name for name, _, _ in managed]
     )
     desktop_config.write_config(cfg_path, cleaned)
+    typer.echo(jsonl_text)
     typer.echo(output.eject_message(cfg_path, len(managed)), err=True)
 
 
