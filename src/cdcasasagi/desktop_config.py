@@ -33,6 +33,10 @@ class DuplicateUrlError(Exception):
     pass
 
 
+class EntryNotManagedError(Exception):
+    pass
+
+
 class BackupError(Exception):
     pass
 
@@ -242,35 +246,39 @@ def merge_entry(
     return config
 
 
-def remove_entries_by_url(
-    config: dict[str, Any], url: str
-) -> tuple[dict[str, Any], list[str]]:
-    """Remove every cdcasasagi-managed entry whose URL matches.
+def remove_entry_by_name(
+    config: dict[str, Any], name: str
+) -> tuple[dict[str, Any], str]:
+    """Remove the cdcasasagi-managed entry under *name*.
 
     An entry is considered managed when ``command`` basename is ``mcp-proxy``
     (or ``mcp-proxy.exe``) and ``args`` starts with ``--transport`` followed
     by a transport value and the URL -- the same shape written by ``add``
-    and required by ``list_mcp_proxy_entries``. Hand-edited entries that
-    happen to end in *url* are left alone. Raises :class:`EntryNotFoundError`
-    when nothing matches. Returns ``(updated_config, removed_names)``.
+    and required by ``list_mcp_proxy_entries``. Raises
+    :class:`EntryNotFoundError` when *name* is absent and
+    :class:`EntryNotManagedError` when the entry exists but is hand-added.
+    Returns ``(updated_config, removed_url)``.
     """
     config = json.loads(json.dumps(config))  # deep copy
     servers = config.setdefault("mcpServers", {})
-    names: list[str] = []
-    for name, entry in servers.items():
-        cmd = entry.get("command", "")
-        if Path(cmd).name not in {"mcp-proxy", "mcp-proxy.exe"}:
-            continue
-        args = entry.get("args", [])
-        if len(args) < 3 or args[0] != "--transport":
-            continue
-        if args[-1] == url:
-            names.append(name)
-    if not names:
-        raise EntryNotFoundError(f"No cdcasasagi-managed entry found for URL: {url}")
-    for name in names:
-        del servers[name]
-    return config, names
+    if name not in servers:
+        raise EntryNotFoundError(f"No entry found with name: {name}")
+    entry = servers[name]
+    cmd = entry.get("command", "")
+    if Path(cmd).name not in {"mcp-proxy", "mcp-proxy.exe"}:
+        raise EntryNotManagedError(
+            f'Entry "{name}" is not managed by cdcasasagi '
+            "(command is not mcp-proxy). Refusing to delete."
+        )
+    args = entry.get("args", [])
+    if len(args) < 3 or args[0] != "--transport":
+        raise EntryNotManagedError(
+            f'Entry "{name}" has an unrecognized args shape and is not '
+            "managed by cdcasasagi. Refusing to delete."
+        )
+    url = args[-1]
+    del servers[name]
+    return config, url
 
 
 def plan_import(

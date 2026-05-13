@@ -1,10 +1,10 @@
 # cdcasasagi delete
 
 E2E for `cdcasasagi delete`, which removes a cdcasasagi-managed MCP server
-entry by URL. These scenarios seed `claude_desktop_config.json` directly
+entry by name. These scenarios seed `claude_desktop_config.json` directly
 (no `add --write`) so they can cover hand-added entries whose `command` is
 not `mcp-proxy` -- a shape `add` would never produce. That lets us verify
-`delete` leaves such entries alone.
+`delete` refuses to touch them and returns a clear error.
 
 The revert round-trip runs last on purpose: it unlinks the `.bak` the other
 `--write` scenarios leave behind, so the next spec starts without a leftover
@@ -16,9 +16,9 @@ backup (mirrors `add_write.spec`).
    |name  |command  |args                                                 |
    |------|---------|-----------------------------------------------------|
    |notion|mcp-proxy|--transport,streamablehttp,https://mcp.notion.com/mcp|
-* Run cdcasasagi "delete https://mcp.notion.com/mcp"
+* Run cdcasasagi "delete notion"
 * The last command succeeds
-* The delete preview announces removal of "https://mcp.notion.com/mcp"
+* The delete preview announces removal of "notion"
 * The config file is unchanged
 
 ## --write removes only the matching managed entry and creates a backup
@@ -29,53 +29,37 @@ backup (mirrors `add_write.spec`).
    |notion    |mcp-proxy|--transport,streamablehttp,https://mcp.notion.com/mcp       |
    |developers|mcp-proxy|--transport,streamablehttp,https://developers.openai.com/mcp|
    |legacy    |node     |/path/to/hand-added-server.js                               |
-* Run cdcasasagi "delete https://mcp.notion.com/mcp --write"
+* Run cdcasasagi "delete notion --write"
 * The last command succeeds
 * "developers,legacy" entries are written to the config file
 * The backup file is created
 * "notion,developers,legacy" entries are written to the backup file
 
-## A hand-added entry that shares the URL is left alone
+## Refuses to delete a hand-added entry
 
-The hand-added entry deliberately mirrors the mcp-proxy args shape (same
-`--transport`, same URL) so only the `command` basename check distinguishes
-it from a managed entry. A regression that dropped that check would cause
-the hand-added entry to be removed, and this scenario would catch it.
-
-* Claude Desktop's config has the following mcpServers entries
-   |name       |command  |args                                                 |
-   |-----------|---------|-----------------------------------------------------|
-   |notion     |mcp-proxy|--transport,streamablehttp,https://mcp.notion.com/mcp|
-   |notion-hand|node     |--transport,streamablehttp,https://mcp.notion.com/mcp|
-* Run cdcasasagi "delete https://mcp.notion.com/mcp --write"
-* The last command succeeds
-* "notion-hand" entry is written to the config file
-
-## delete fails when only a hand-added entry matches the URL
-
-Same principle as the previous scenario: the hand-added entry's args exactly
-match what `delete` looks for, so only the `command` basename check prevents
-the match. Without a managed entry, `delete` must fail with
-`EntryNotFoundError` rather than fall through to the hand-added one.
+The named entry's `command` is `node`, not `mcp-proxy`, so `delete` must
+refuse with a specific "not managed by cdcasasagi" error rather than remove
+it. A regression that dropped the command-basename check would silently
+delete the hand-added entry, and this scenario would catch it.
 
 * Claude Desktop's config has the following mcpServers entries
    |name       |command|args                                                 |
    |-----------|-------|-----------------------------------------------------|
    |notion-hand|node   |--transport,streamablehttp,https://mcp.notion.com/mcp|
-* Run cdcasasagi "delete https://mcp.notion.com/mcp"
+* Run cdcasasagi "delete notion-hand --write"
 * The last command fails
-* stderr contains "No cdcasasagi-managed entry found"
+* stderr contains "not managed by cdcasasagi"
 * The config file is unchanged
 
-## delete fails when the URL is not present
+## delete fails when the name is not present
 
 * Claude Desktop's config has the following mcpServers entries
    |name  |command  |args                                                 |
    |------|---------|-----------------------------------------------------|
    |notion|mcp-proxy|--transport,streamablehttp,https://mcp.notion.com/mcp|
-* Run cdcasasagi "delete https://other.example.com/mcp"
+* Run cdcasasagi "delete missing"
 * The last command fails
-* stderr contains "No cdcasasagi-managed entry found"
+* stderr contains "No entry found with name: missing"
 * The config file is unchanged
 
 ## revert round-trips a delete --write
@@ -86,7 +70,7 @@ the match. Without a managed entry, `delete` must fail with
    |notion    |mcp-proxy|--transport,streamablehttp,https://mcp.notion.com/mcp       |
    |developers|mcp-proxy|--transport,streamablehttp,https://developers.openai.com/mcp|
    |legacy    |node     |/path/to/hand-added-server.js                               |
-* Run cdcasasagi "delete https://mcp.notion.com/mcp --write"
+* Run cdcasasagi "delete notion --write"
 * "developers,legacy" entries are written to the config file
 * Run cdcasasagi "revert"
 * "notion,developers,legacy" entries are written to the config file
