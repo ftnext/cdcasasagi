@@ -15,12 +15,15 @@ This skill is for **non-developer Claude Desktop users**. The user just talks; y
 ## Tool overview
 
 ```
-cdcasasagi version             # is it installed?
-cdcasasagi doctor              # is mcp-proxy + config path ready?
-cdcasasagi list                # what is configured today?
-cdcasasagi add <url> --write   # add one server
-cdcasasagi import - --write    # add many servers (JSONL on stdin)
-cdcasasagi revert              # undo the last --write
+cdcasasagi version                  # is it installed?
+cdcasasagi doctor                   # is mcp-proxy + config path ready?
+cdcasasagi list                     # what is configured today?
+cdcasasagi add <url> --write        # add one server
+cdcasasagi delete <name> --write    # remove one server by name
+cdcasasagi validate-import -        # dry-run JSONL on stdin (never writes)
+cdcasasagi import - --write         # add many servers (JSONL on stdin)
+cdcasasagi eject > backup.jsonl     # dump managed entries as JSONL and clear them
+cdcasasagi revert                   # undo the last --write (or eject)
 ```
 
 Useful facts (verified against the source, not assumed):
@@ -117,6 +120,18 @@ When this happens:
 
 - Do not auto-retry with `--force`. The conflicting entry might be the user's own (hand-added or from an earlier session).
 - List the conflicts to the user in plain words, explain that re-running with `--force --write` will overwrite those existing entries, and ask before doing so.
+
+### Re-importing after edits (use `eject`, not `--force`)
+
+When the user wants to *redo* a bulk import — e.g. rename a few entries, drop one, add a couple more — do **not** try to reconcile diffs with `--force`. Instead:
+
+1. `cdcasasagi eject > backup.jsonl` — prints every managed entry to the file as JSONL and removes them from the config in one step. A `.bak` is written, so `cdcasasagi revert` still rolls this back if needed. Hand-added entries (whose `command` is not `mcp-proxy`) are left alone.
+2. Edit `backup.jsonl` together with the user (or have them paste the modified JSONL back). Show the final list in plain words and confirm.
+3. `cdcasasagi validate-import - < backup.jsonl` to re-check the schema.
+4. `cdcasasagi import - --write < backup.jsonl` (or feed the same JSONL via heredoc) to re-apply everything in one shot.
+5. Restart Claude Desktop reminder, as always.
+
+This keeps the operation all-or-nothing and avoids the `--force` path entirely — the config is briefly empty between `eject` and `import`, but Claude Desktop is not running against the new config until the user restarts it.
 
 ### Why heredoc, not echo
 
