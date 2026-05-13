@@ -78,28 +78,26 @@ def revert_message(
 
 
 def delete_preview_message(
-    url: str, removed_names: list[str], config_path: Path, diff_text: str
+    name: str, url: str, config_path: Path, diff_text: str
 ) -> str:
-    names = _format_replaces(removed_names)
     lines = [
         f"Target: {config_path}",
         "",
         diff_text.rstrip(),
         "",
-        f"Will remove {names} ({url}).",
+        f'Will remove "{name}" ({url}).',
         "This is a preview. Re-run with --write to apply.",
     ]
     return "\n".join(lines)
 
 
-def delete_write_message(url: str, removed_names: list[str], config_path: Path) -> str:
+def delete_write_message(name: str, url: str, config_path: Path) -> str:
     backup = config_path.with_suffix(config_path.suffix + ".bak")
-    names = _format_replaces(removed_names)
     lines = [
         f"Backup: {backup}",
         f"Wrote:  {config_path}",
         "",
-        f"Removed {names} ({url}). Restart Claude Desktop to take effect.",
+        f'Removed "{name}" ({url}). Restart Claude Desktop to take effect.',
     ]
     return "\n".join(lines)
 

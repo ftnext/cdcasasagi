@@ -94,19 +94,19 @@ cdcasasagi import - --write
 
 ### delete
 
-Remove an entry from the Claude Desktop config by URL:
+Remove an entry from the Claude Desktop config by name:
 
 ```
-cdcasasagi delete https://mcp.notion.com/mcp
+cdcasasagi delete notion
 ```
 
 This shows a unified diff of the proposed removal. Pass `--write` to apply:
 
 ```
-cdcasasagi delete https://mcp.notion.com/mcp --write
+cdcasasagi delete notion --write
 ```
 
-Only entries added by cdcasasagi (whose `command` is `mcp-proxy`) are removed. Hand-added entries that happen to share a URL are left alone.
+Names match the left column of `cdcasasagi list` output. Only entries managed by cdcasasagi (whose `command` is `mcp-proxy`) can be deleted; if the named entry was hand-added, `delete` refuses with an error so you can edit the config manually.
 
 ### list
 

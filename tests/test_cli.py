@@ -764,7 +764,7 @@ class TestDelete:
             json.dumps({"mcpServers": {"notion": self._managed(fake_proxy, url)}})
         )
         before = config_file.read_text()
-        result = runner.invoke(app, ["delete", url])
+        result = runner.invoke(app, ["delete", "notion"])
         assert result.exit_code == 0
         assert f"Target: {config_file}" in result.output
         assert "--- current" in result.output
@@ -789,7 +789,7 @@ class TestDelete:
                 }
             )
         )
-        result = runner.invoke(app, ["delete", notion_url, "--write"])
+        result = runner.invoke(app, ["delete", "notion", "--write"])
         assert result.exit_code == 0
         data = json.loads(config_file.read_text())
         assert "notion" not in data["mcpServers"]
@@ -799,7 +799,7 @@ class TestDelete:
         assert f'Removed "notion" ({notion_url}).' in result.output
         assert "Restart Claude Desktop" in result.output
 
-    def test_url_not_found(self, config_env):
+    def test_name_not_found(self, config_env):
         config_file, fake_proxy = config_env
         config_file.write_text(
             json.dumps(
@@ -813,35 +813,34 @@ class TestDelete:
             )
         )
         before = config_file.read_text()
-        result = runner.invoke(app, ["delete", "https://missing.example.com/mcp"])
+        result = runner.invoke(app, ["delete", "missing"])
         assert result.exit_code == 1
-        assert "No cdcasasagi-managed entry found" in result.output
-        assert "https://missing.example.com/mcp" in result.output
+        assert "No entry found with name: missing" in result.output
         assert config_file.read_text() == before
 
     def test_no_config_file(self, config_env):
         config_file, _ = config_env
         assert not config_file.exists()
-        result = runner.invoke(app, ["delete", "https://mcp.notion.com/mcp"])
+        result = runner.invoke(app, ["delete", "anything"])
         assert result.exit_code == 1
-        assert "No cdcasasagi-managed entry found" in result.output
+        assert "No entry found with name: anything" in result.output
 
     def test_corrupt_config(self, config_env):
         config_file, _ = config_env
         config_file.write_text("not json at all")
-        result = runner.invoke(app, ["delete", "https://mcp.notion.com/mcp"])
+        result = runner.invoke(app, ["delete", "notion"])
         assert result.exit_code == 1
         assert "Failed to parse JSON config file" in result.output
 
-    def test_ignores_non_managed_entry_with_matching_url(self, config_env):
+    def test_refuses_hand_added_entry(self, config_env):
         config_file, _ = config_env
         url = "https://mcp.notion.com/mcp"
         config_file.write_text(
             json.dumps(
                 {
                     "mcpServers": {
-                        "custom": {
-                            "command": "/usr/bin/some-other-tool",
+                        "notion-hand": {
+                            "command": "/usr/bin/node",
                             "args": ["--transport", "streamablehttp", url],
                         }
                     }
@@ -849,9 +848,26 @@ class TestDelete:
             )
         )
         before = config_file.read_text()
-        result = runner.invoke(app, ["delete", url, "--write"])
+        result = runner.invoke(app, ["delete", "notion-hand", "--write"])
         assert result.exit_code == 1
-        assert "No cdcasasagi-managed entry found" in result.output
+        assert "not managed by cdcasasagi" in result.output
+        assert config_file.read_text() == before
+
+    def test_refuses_malformed_managed_shape(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "weird": {"command": "mcp-proxy", "args": ["--other"]},
+                    }
+                }
+            )
+        )
+        before = config_file.read_text()
+        result = runner.invoke(app, ["delete", "weird"])
+        assert result.exit_code == 1
+        assert "not managed by cdcasasagi" in result.output
         assert config_file.read_text() == before
 
     def test_delete_then_revert_restores(self, config_env):
@@ -865,7 +881,7 @@ class TestDelete:
             }
         }
         config_file.write_text(json.dumps(original))
-        result = runner.invoke(app, ["delete", notion_url, "--write"])
+        result = runner.invoke(app, ["delete", "notion", "--write"])
         assert result.exit_code == 0
         result = runner.invoke(app, ["revert"])
         assert result.exit_code == 0
