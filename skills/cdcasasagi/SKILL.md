@@ -80,7 +80,7 @@ Use this when the user describes servers in chat one at a time.
    ```
 
 4. Repeat per server. Each `--write` overwrites the previous `.bak` — only the most recent change is reversible via `revert`.
-5. End with: **"Restart Claude Desktop for the new server(s) to show up."**
+5. End with: **"Restart Claude Desktop, then open it and check that the new MCP server(s) appear in its settings."** Claude Desktop itself is the user's source of truth — do not follow up with `cdcasasagi list` to re-show the configured state.
 
 ### Edge cases for `add`
 
@@ -119,7 +119,7 @@ Use this when the input is (or naturally becomes) JSONL — the user pastes JSON
    JSONL
    ```
 
-5. End with the **restart Claude Desktop** reminder.
+5. End with the **restart Claude Desktop** reminder, and ask the user to check the new MCP servers in Claude Desktop's settings (see the closing reminder in Workflow B step 5).
 
 ### All-or-nothing semantics
 
@@ -138,7 +138,7 @@ When the user wants to *redo* a bulk import — e.g. rename a few entries, drop 
 2. Edit `backup.jsonl` together with the user (or have them paste the modified JSONL back). Show the final list in plain words and confirm.
 3. `cdcasasagi validate-import - < backup.jsonl` to re-check the schema.
 4. `cdcasasagi import - --write < backup.jsonl` (or feed the same JSONL via heredoc) to re-apply everything in one shot.
-5. Restart Claude Desktop reminder, as always.
+5. Restart Claude Desktop reminder, and ask the user to confirm the final MCP server list in Claude Desktop's settings.
 
 This keeps the operation all-or-nothing and avoids the `--force` path entirely — the config is briefly empty between `eject` and `import`, but Claude Desktop is not running against the new config until the user restarts it.
 
@@ -157,7 +157,7 @@ cdcasasagi revert
 - Restores the config from the `.bak` written by the last `--write`, then deletes the `.bak`.
 - Always applies; there is no preview. Confirm in plain words before running.
 - **One level only.** If the user did two `--write`s in a row, `revert` only undoes the most recent one. After running `revert`, there is no `.bak` left, so a second `revert` will fail with `Backup not found`.
-- Tell the user to restart Claude Desktop after `revert` too.
+- Tell the user to restart Claude Desktop after `revert` too, and to confirm the MCP server list in Claude Desktop's settings reflects the rolled-back state.
 
 ## Operating rules for the agent
 
@@ -165,9 +165,9 @@ cdcasasagi revert
 - Always confirm with the user before any `--write` or `revert`. Describe the effect, don't show them the raw diff.
 - Never edit `claude_desktop_config.json` directly with file tools. Always go through `cdcasasagi`.
 - Never pass `--force` without explicit user consent. Treat every conflict as "ask the user".
-- Tell the user to restart Claude Desktop after any `--write` or `revert`.
+- Tell the user to restart Claude Desktop after any `--write` or `revert`, and ask them to check the MCP server list in Claude Desktop's settings to confirm the change took effect. Claude Desktop is the source of truth post-restart; do not run `cdcasasagi list` just to re-show the new state.
 - `cdcasasagi` output is ASCII-only by project policy. Don't pretty-print it back with Unicode boxes or emoji.
-- Use `cdcasasagi list` any time the user asks "what do I have configured?" — it lists only `cdcasasagi`-managed entries (`name : url`, sorted), and ignores hand-added entries.
+- Use `cdcasasagi list` only when the user explicitly asks "what do I have configured?" — it lists only `cdcasasagi`-managed entries (`name : url`, sorted), and ignores hand-added entries. Do not call it as a self-verification step after a `--write`.
 - For exact flag semantics on a particular command, run `cdcasasagi <command> --help` rather than guessing.
 
 ## Manual verification (for the skill author)
