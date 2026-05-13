@@ -1,7 +1,7 @@
 ---
 name: cdcasasagi
 description: Help a non-developer Claude Desktop user wire up remote (Streamable HTTP) MCP servers via the `cdcasasagi` CLI. Use when the user says things like "add the Notion / Linear / OpenAI MCP server", "I installed Claude Desktop and want to use a remote MCP server", "set up these N MCP servers for me", "import a list of MCP servers", or "undo the last MCP server change". The agent runs `cdcasasagi` on the user's behalf so they never have to read diffs, hand-edit `claude_desktop_config.json`, or compose CLI arguments themselves.
-allowed-tools: Bash(cdcasasagi:*) Bash(uv tool install cdcasasagi:*) Bash(uv.exe tool install cdcasasagi:*)
+allowed-tools: Bash(cdcasasagi:*) Bash(uv tool install cdcasasagi) Bash(uv.exe tool install cdcasasagi)
 ---
 
 # cdcasasagi skill
