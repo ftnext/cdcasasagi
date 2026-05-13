@@ -184,6 +184,39 @@ def list_mcp_proxy_entries(config: dict[str, Any]) -> list[tuple[str, str]]:
     return result
 
 
+def collect_managed_entries(
+    config: dict[str, Any],
+) -> list[tuple[str, str, str]]:
+    """Return ``(name, url, transport)`` for managed entries, sorted by name.
+
+    Uses the same shape check as :func:`list_mcp_proxy_entries` and adds the
+    transport from ``args[1]``.
+    """
+    result: list[tuple[str, str, str]] = []
+    for name, entry in config.get("mcpServers", {}).items():
+        cmd = entry.get("command", "")
+        if Path(cmd).name not in {"mcp-proxy", "mcp-proxy.exe"}:
+            continue
+        args = entry.get("args", [])
+        if len(args) < 3 or args[0] != "--transport":
+            continue
+        result.append((name, args[-1], args[1]))
+    result.sort(key=lambda x: x[0])
+    return result
+
+
+def remove_managed_entries(config: dict[str, Any], names: list[str]) -> dict[str, Any]:
+    """Return a deep copy of *config* with the given names dropped from
+    ``mcpServers``. Caller is expected to have validated that the names refer
+    to managed entries (e.g. via :func:`collect_managed_entries`).
+    """
+    config = json.loads(json.dumps(config))
+    servers = config.setdefault("mcpServers", {})
+    for name in names:
+        servers.pop(name, None)
+    return config
+
+
 def build_entry(mcp_proxy_path: Path, transport: str, url: str) -> dict[str, Any]:
     return {
         "command": str(mcp_proxy_path),

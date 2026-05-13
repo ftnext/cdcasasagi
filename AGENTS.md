@@ -61,7 +61,7 @@ When adding a new command, decide which layer it serves and whether it participa
 
 ## Design Rules
 
-- Always default to preview (non-destructive). Require `--write` to mutate files.
+- Always default to preview (non-destructive). Require `--write` to mutate files. Recovery commands (`revert`, `eject`) are deliberately exempt: they are escape hatches whose value is acting in a single step, and `eject` always leaves a `.bak` that `revert` can roll back.
 - Import is all-or-nothing: any validation/planning/conflict error → nothing is written.
 - Never modify top-level keys other than `mcpServers`.
 - Assume config structure is valid (Claude Desktop is using it). Only handle `mcpServers` key being absent (create as `{}`). Do not add handling for non-object JSON or non-dict `mcpServers` (see reverts `0f936eb`, `9a7cb75`).

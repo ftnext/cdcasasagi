@@ -22,7 +22,7 @@ Commands at a glance:
 
 - **Mutating (preview by default, `--write` to apply):** `add`, `import`, `delete`
 - **Read-only:** `list`, `validate-import`, `doctor`
-- **Recovery:** `revert` (restores from the `.bak` left by the last `--write`)
+- **Recovery:** `revert` (restores from the `.bak` left by the last `--write`), `eject` (prints managed entries as JSONL and clears them, for re-import after edits)
 - **Misc:** `version`
 
 The `add`, `import`, and `delete` commands default to **preview mode** (no files are modified). Pass `--write` to apply changes.  
@@ -159,6 +159,18 @@ Restore the config from the `.bak` backup created by the last `--write`:
 ```
 cdcasasagi revert
 ```
+
+### eject
+
+Print all cdcasasagi-managed entries as JSONL on stdout, then remove them from the config. Useful when you want to re-import a slightly modified set of entries: redirect the output to a file, edit it, and re-import.
+
+```
+cdcasasagi eject > backup.jsonl
+# edit backup.jsonl
+cdcasasagi import backup.jsonl --write
+```
+
+The status summary is printed to stderr so stdout stays a clean JSONL stream that can be redirected or piped. Hand-added entries (whose `command` is not `mcp-proxy`) are preserved. Run `cdcasasagi revert` to undo an `eject` if needed.
 
 ### version
 
