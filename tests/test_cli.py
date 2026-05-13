@@ -1746,6 +1746,29 @@ class TestEject:
             "name": "my-notion",
         }
 
+    def test_eject_jsonl_is_ascii_only(self, config_env):
+        # Server names can contain non-ASCII characters (e.g. via --name).
+        # The CLI must keep stdout ASCII so the JSONL is safe to print on
+        # Windows terminals using cp1252 (see AGENTS.md "CLI output must be
+        # ASCII-only"). The escaped form is still round-trippable through
+        # `import` because json.loads decodes \\uXXXX escapes.
+        config_file, fake_proxy = config_env
+        url = "https://mcp.notion.com/mcp"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "鵲": self._managed(fake_proxy, url),
+                    }
+                }
+            )
+        )
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+        line = result.stdout.strip()
+        assert line.isascii(), f"stdout should be ASCII-only, got: {line!r}"
+        assert json.loads(line) == {"url": url, "name": "鵲"}
+
     def test_eject_no_op_when_no_managed(self, config_env):
         config_file, _ = config_env
         config_file.write_text(

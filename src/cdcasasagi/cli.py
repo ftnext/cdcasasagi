@@ -276,7 +276,7 @@ def _format_eject_jsonl(entries: list[tuple[str, str, str]]) -> str:
             payload["name"] = name
         if transport != "streamablehttp":
             payload["transport"] = transport
-        lines.append(json.dumps(payload, ensure_ascii=False))
+        lines.append(json.dumps(payload))
     return "\n".join(lines)
 
 
