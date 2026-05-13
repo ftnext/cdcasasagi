@@ -260,6 +260,50 @@ def delete(
         typer.echo(output.delete_write_message(name, removed_url, cfg_path))
 
 
+def _format_eject_jsonl(entries: list[tuple[str, str, str]]) -> str:
+    """Render *(name, url, transport)* entries as JSONL, omitting default
+    values so the output is minimal but round-trippable through ``import``.
+    """
+    lines: list[str] = []
+    for name, url, transport in entries:
+        try:
+            name_is_derived = server_name.derive_server_name(url) == name
+        except server_name.NameDerivationError:
+            name_is_derived = False
+
+        payload: dict[str, str] = {"url": url}
+        if not name_is_derived:
+            payload["name"] = name
+        if transport != "streamablehttp":
+            payload["transport"] = transport
+        lines.append(json.dumps(payload, ensure_ascii=False))
+    return "\n".join(lines)
+
+
+@app.command()
+def eject() -> None:
+    """Print managed entries as JSONL to stdout, then remove them from config."""
+    try:
+        cfg_path = desktop_config.config_path()
+        current_config = desktop_config.load_config(cfg_path)
+    except desktop_config.ConfigError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=1)
+
+    managed = desktop_config.collect_managed_entries(current_config)
+    if not managed:
+        typer.echo(output.eject_noop_message(cfg_path), err=True)
+        return
+
+    typer.echo(_format_eject_jsonl(managed))
+
+    cleaned = desktop_config.remove_managed_entries(
+        current_config, [name for name, _, _ in managed]
+    )
+    desktop_config.write_config(cfg_path, cleaned)
+    typer.echo(output.eject_message(cfg_path, len(managed)), err=True)
+
+
 @app.command()
 def revert() -> None:
     try:

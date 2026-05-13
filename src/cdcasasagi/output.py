@@ -102,6 +102,24 @@ def delete_write_message(name: str, url: str, config_path: Path) -> str:
     return "\n".join(lines)
 
 
+def eject_message(cfg_path: Path, count: int) -> str:
+    backup = cfg_path.with_suffix(cfg_path.suffix + ".bak")
+    entry_word = "entry" if count == 1 else "entries"
+    return "\n".join(
+        [
+            f"Backup: {backup}",
+            f"Wrote:  {cfg_path}",
+            "",
+            f"Ejected {count} {entry_word}. Restart Claude Desktop to take effect.",
+            "Run `cdcasasagi revert` to undo.",
+        ]
+    )
+
+
+def eject_noop_message(cfg_path: Path) -> str:
+    return f"No cdcasasagi-managed entries to eject.\nTarget: {cfg_path}"
+
+
 def write_message(
     name: str,
     name_was_derived: bool,

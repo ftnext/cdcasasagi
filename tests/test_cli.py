@@ -1641,3 +1641,189 @@ class TestValidateErrors:
         )
         assert result.exit_code == 1
         assert not (tmp_path / "mcp-servers.jsonl").exists()
+
+
+class TestEject:
+    @staticmethod
+    def _managed(command, url, transport="streamablehttp"):
+        return {
+            "command": str(command),
+            "args": ["--transport", transport, url],
+        }
+
+    def test_eject_outputs_jsonl_and_clears_managed(self, config_env):
+        config_file, fake_proxy = config_env
+        notion_url = "https://mcp.notion.com/mcp"
+        linear_url = "https://mcp.linear.app/mcp"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": self._managed(fake_proxy, notion_url),
+                        "linear": self._managed(fake_proxy, linear_url),
+                        "hand-added": {
+                            "command": "/usr/bin/node",
+                            "args": ["server.js"],
+                        },
+                    }
+                }
+            )
+        )
+
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+
+        # stdout: JSONL only, sorted alphabetically by name
+        stdout_lines = result.stdout.strip().splitlines()
+        assert len(stdout_lines) == 2
+        assert json.loads(stdout_lines[0]) == {"url": linear_url}
+        assert json.loads(stdout_lines[1]) == {"url": notion_url}
+
+        # stderr: status message
+        assert "Backup:" in result.stderr
+        assert "Wrote:" in result.stderr
+        assert "Ejected 2 entries" in result.stderr
+        assert "cdcasasagi revert" in result.stderr
+
+        # config: only hand-added remains
+        data = json.loads(config_file.read_text())
+        assert list(data["mcpServers"].keys()) == ["hand-added"]
+        assert config_file.with_suffix(".json.bak").exists()
+
+    def test_eject_omits_default_transport(self, config_env):
+        config_file, fake_proxy = config_env
+        url = "https://mcp.notion.com/mcp"
+        config_file.write_text(
+            json.dumps({"mcpServers": {"notion": self._managed(fake_proxy, url)}})
+        )
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+        line = result.stdout.strip()
+        assert json.loads(line) == {"url": url}
+        assert "transport" not in line
+
+    def test_eject_emits_non_default_transport(self, config_env):
+        config_file, fake_proxy = config_env
+        url = "https://mcp.notion.com/mcp"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "notion": self._managed(fake_proxy, url, transport="sse"),
+                    }
+                }
+            )
+        )
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+        assert json.loads(result.stdout.strip()) == {
+            "url": url,
+            "transport": "sse",
+        }
+
+    def test_eject_omits_derived_name(self, config_env):
+        config_file, fake_proxy = config_env
+        url = "https://mcp.notion.com/mcp"
+        # "notion" is the derived name from the hostname
+        config_file.write_text(
+            json.dumps({"mcpServers": {"notion": self._managed(fake_proxy, url)}})
+        )
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout.strip())
+        assert "name" not in payload
+
+    def test_eject_emits_custom_name(self, config_env):
+        config_file, fake_proxy = config_env
+        url = "https://mcp.notion.com/mcp"
+        config_file.write_text(
+            json.dumps({"mcpServers": {"my-notion": self._managed(fake_proxy, url)}})
+        )
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+        assert json.loads(result.stdout.strip()) == {
+            "url": url,
+            "name": "my-notion",
+        }
+
+    def test_eject_no_op_when_no_managed(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "hand-added": {
+                            "command": "/usr/bin/node",
+                            "args": ["server.js"],
+                        }
+                    }
+                }
+            )
+        )
+        before = config_file.read_text()
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert "No cdcasasagi-managed entries to eject." in result.stderr
+        assert config_file.read_text() == before
+        assert not config_file.with_suffix(".json.bak").exists()
+
+    def test_eject_no_op_when_config_missing(self, config_env):
+        config_file, _ = config_env
+        assert not config_file.exists()
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert "No cdcasasagi-managed entries to eject." in result.stderr
+        assert not config_file.exists()
+        assert not config_file.with_suffix(".json.bak").exists()
+
+    def test_eject_then_import_roundtrips(self, config_env):
+        config_file, fake_proxy = config_env
+        notion_url = "https://mcp.notion.com/mcp"
+        linear_url = "https://mcp.linear.app/mcp"
+        original_servers = {
+            "linear": self._managed(fake_proxy, linear_url),
+            "my-notion": self._managed(fake_proxy, notion_url, transport="sse"),
+        }
+        config_file.write_text(json.dumps({"mcpServers": original_servers}))
+
+        eject_result = runner.invoke(app, ["eject"])
+        assert eject_result.exit_code == 0
+        jsonl = eject_result.stdout
+        assert json.loads(config_file.read_text())["mcpServers"] == {}
+
+        import_result = runner.invoke(app, ["import", "-", "--write"], input=jsonl)
+        assert import_result.exit_code == 0
+        restored = json.loads(config_file.read_text())["mcpServers"]
+        assert set(restored.keys()) == {"linear", "my-notion"}
+        assert restored["linear"]["args"][-1] == linear_url
+        assert restored["my-notion"]["args"][-1] == notion_url
+        assert restored["my-notion"]["args"][1] == "sse"
+
+    def test_eject_then_revert_restores(self, config_env):
+        config_file, fake_proxy = config_env
+        notion_url = "https://mcp.notion.com/mcp"
+        linear_url = "https://mcp.linear.app/mcp"
+        original = {
+            "mcpServers": {
+                "notion": self._managed(fake_proxy, notion_url),
+                "linear": self._managed(fake_proxy, linear_url),
+                "hand-added": {"command": "/usr/bin/node", "args": ["server.js"]},
+            }
+        }
+        config_file.write_text(json.dumps(original))
+
+        eject_result = runner.invoke(app, ["eject"])
+        assert eject_result.exit_code == 0
+
+        revert_result = runner.invoke(app, ["revert"])
+        assert revert_result.exit_code == 0
+        assert json.loads(config_file.read_text()) == original
+
+    def test_eject_corrupt_config(self, config_env):
+        config_file, _ = config_env
+        config_file.write_text("not json")
+        result = runner.invoke(app, ["eject"])
+        assert result.exit_code == 1
+        assert "Failed to parse JSON config file" in result.stderr

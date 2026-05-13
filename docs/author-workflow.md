@@ -55,6 +55,18 @@ The only keyboard action is pasting the JSONL and terminating stdin.
 
 `validate-import` is the *author's* composition tool. Before sharing the JSONL, the author can paste it into `cdcasasagi validate-import -` locally to confirm schema / URL validity without touching their own config. `validate-import` deliberately has no `--write` option and does not write any files — it is strictly a read-only validator, keeping "validate" and "mutate the config" as separate concerns.
 
+### Re-importing a modified JSONL
+
+If the author needs to tweak a few of the entries already imported, the painless path is `cdcasasagi eject`. It prints the cdcasasagi-managed entries as JSONL on stdout (in the exact shape `import` accepts) and clears them from the config in one step. The author redirects the output to a file, edits it, and ships the usual `cdcasasagi import - --write` paste to the non-developer — no `--force`, no conflict resolution, and no need to remember the original JSONL.
+
+```
+cdcasasagi eject > current.jsonl   # round-trip via JSONL
+# edit current.jsonl
+cdcasasagi import current.jsonl --write   # re-import the modified set
+```
+
+If the eject was a mistake, `cdcasasagi revert` restores the previous state from the `.bak` it left behind.
+
 ## Recovery
 
 If a `--write` command produces an unexpected result, the non-developer runs:
