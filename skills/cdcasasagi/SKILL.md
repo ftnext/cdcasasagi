@@ -1,6 +1,7 @@
 ---
 name: cdcasasagi
 description: Help a non-developer Claude Desktop user wire up remote (Streamable HTTP) MCP servers via the `cdcasasagi` CLI. Use when the user says things like "add the Notion / Linear / OpenAI MCP server", "I installed Claude Desktop and want to use a remote MCP server", "set up these N MCP servers for me", "import a list of MCP servers", or "undo the last MCP server change". The agent runs `cdcasasagi` on the user's behalf so they never have to read diffs, hand-edit `claude_desktop_config.json`, or compose CLI arguments themselves.
+allowed-tools: Bash(cdcasasagi:*) Bash(uv tool install cdcasasagi) Bash(uv.exe tool install cdcasasagi)
 ---
 
 # cdcasasagi skill
@@ -14,12 +15,15 @@ This skill is for **non-developer Claude Desktop users**. The user just talks; y
 ## Tool overview
 
 ```
-cdcasasagi version             # is it installed?
-cdcasasagi doctor              # is mcp-proxy + config path ready?
-cdcasasagi list                # what is configured today?
-cdcasasagi add <url> --write   # add one server
-cdcasasagi import - --write    # add many servers (JSONL on stdin)
-cdcasasagi revert              # undo the last --write
+cdcasasagi version                  # is it installed?
+cdcasasagi doctor                   # is mcp-proxy + config path ready?
+cdcasasagi list                     # what is configured today?
+cdcasasagi add <url> --write        # add one server
+cdcasasagi delete <name> --write    # remove one server by name
+cdcasasagi validate-import -        # dry-run JSONL on stdin (never writes)
+cdcasasagi import - --write         # add many servers (JSONL on stdin)
+cdcasasagi eject > backup.jsonl     # dump managed entries as JSONL and clear them
+cdcasasagi revert                   # undo the last --write (or eject)
 ```
 
 Useful facts (verified against the source, not assumed):
@@ -48,9 +52,18 @@ Run this at the start of any session, and any time you suspect the tool may be m
    - If any line is `[FAIL]`, surface that to the user in plain words and stop. Do not run `--write` against a broken setup.
    - A `[FAIL] Config file: not found` is normal on a brand-new install (no servers added yet) — the first `--write` creates the file. The other two checks must pass.
 
-## Workflow B: Add one or a few servers (conversational)
+## Choosing between Workflow B and C
 
-Use this when the user names one or a small handful of servers in chat.
+The choice is **driven by input format, not by entry count**:
+
+- **Workflow B (conversational `add`)** — the user names servers in natural language ("add the Notion MCP server", "could you also wire up Linear?"). One URL at a time, one `add --write` per server.
+- **Workflow C (`import` from JSONL)** — the user hands you JSONL, or it's natural to compose JSONL from a list they pasted / read out. Use C for any count from 2 upward; `validate-import` makes the schema check explicit and `import` is all-or-nothing. Going through C for two entries is fine and often clearer than two sequential `add --write`s.
+
+When in doubt, ask the user which form is easier for them.
+
+## Workflow B: Add servers conversationally
+
+Use this when the user describes servers in chat one at a time.
 
 1. Get the URL from the user. If the user did not pick a name, leave `--name` off — the tool derives one from the URL hostname (`developers.openai.com/mcp` -> `developers`, `mcp.notion.com/mcp` -> `notion`).
 2. **Confirm in plain words** before writing. Say what you will run, what file it edits, and what name will appear in Claude Desktop. For non-developer users, do not paste the diff back; describe it. Example phrasing:
@@ -67,7 +80,7 @@ Use this when the user names one or a small handful of servers in chat.
    ```
 
 4. Repeat per server. Each `--write` overwrites the previous `.bak` — only the most recent change is reversible via `revert`.
-5. End with: **"Restart Claude Desktop for the new server(s) to show up."**
+5. End with: **"Restart Claude Desktop, then open it and check that the new MCP server(s) appear in its settings."** Claude Desktop itself is the user's source of truth — do not follow up with `cdcasasagi list` to re-show the configured state.
 
 ### Edge cases for `add`
 
@@ -75,9 +88,9 @@ Use this when the user names one or a small handful of servers in chat.
 - **URL or name already exists** -> the command exits 1 with a message ending `Use --force to overwrite`. Do **not** silently retry with `--force`. Tell the user there is an existing entry under that name/URL (it may be hand-added by them or from a previous session), describe what overwriting means, and ask before re-running with `--force --write`.
 - **`mcp-proxy not found`** -> the install is broken (likely installed via `uvx` or hand). Re-run Workflow A.
 
-## Workflow C: Bulk import (10+ servers)
+## Workflow C: Import from JSONL
 
-Use this when the user hands you a list of URLs (a paste, a doc, a screenshot they read out, etc.). The strategy is: build one JSONL block, validate it once with no writes, then apply it once.
+Use this when the input is (or naturally becomes) JSONL — the user pastes JSONL, hands you a list of URLs, reads them out, or you want the up-front schema check that `validate-import` provides. Any count from 2 upward is a fit. The strategy is: build one JSONL block, validate it once with no writes, then apply it once.
 
 1. **Build JSONL.** One JSON object per line. Schema (every other key is rejected):
    - `url` — required, string, `http://` or `https://`.
@@ -106,7 +119,7 @@ Use this when the user hands you a list of URLs (a paste, a doc, a screenshot th
    JSONL
    ```
 
-5. End with the **restart Claude Desktop** reminder.
+5. End with the **restart Claude Desktop** reminder, and ask the user to check the new MCP servers in Claude Desktop's settings (see the closing reminder in Workflow B step 5).
 
 ### All-or-nothing semantics
 
@@ -116,6 +129,18 @@ When this happens:
 
 - Do not auto-retry with `--force`. The conflicting entry might be the user's own (hand-added or from an earlier session).
 - List the conflicts to the user in plain words, explain that re-running with `--force --write` will overwrite those existing entries, and ask before doing so.
+
+### Re-importing after edits (use `eject`, not `--force`)
+
+When the user wants to *redo* a bulk import — e.g. rename a few entries, drop one, add a couple more — do **not** try to reconcile diffs with `--force`. Instead:
+
+1. `cdcasasagi eject > backup.jsonl` — prints every managed entry to the file as JSONL and removes them from the config in one step. A `.bak` is written, so `cdcasasagi revert` still rolls this back if needed. Hand-added entries (whose `command` is not `mcp-proxy`) are left alone.
+2. Edit `backup.jsonl` together with the user (or have them paste the modified JSONL back). Show the final list in plain words and confirm.
+3. `cdcasasagi validate-import - < backup.jsonl` to re-check the schema.
+4. `cdcasasagi import - --write < backup.jsonl` (or feed the same JSONL via heredoc) to re-apply everything in one shot.
+5. Restart Claude Desktop reminder, and ask the user to confirm the final MCP server list in Claude Desktop's settings.
+
+This keeps the operation all-or-nothing and avoids the `--force` path entirely — the config is briefly empty between `eject` and `import`, but Claude Desktop is not running against the new config until the user restarts it.
 
 ### Why heredoc, not echo
 
@@ -132,7 +157,7 @@ cdcasasagi revert
 - Restores the config from the `.bak` written by the last `--write`, then deletes the `.bak`.
 - Always applies; there is no preview. Confirm in plain words before running.
 - **One level only.** If the user did two `--write`s in a row, `revert` only undoes the most recent one. After running `revert`, there is no `.bak` left, so a second `revert` will fail with `Backup not found`.
-- Tell the user to restart Claude Desktop after `revert` too.
+- Tell the user to restart Claude Desktop after `revert` too, and to confirm the MCP server list in Claude Desktop's settings reflects the rolled-back state.
 
 ## Operating rules for the agent
 
@@ -140,9 +165,9 @@ cdcasasagi revert
 - Always confirm with the user before any `--write` or `revert`. Describe the effect, don't show them the raw diff.
 - Never edit `claude_desktop_config.json` directly with file tools. Always go through `cdcasasagi`.
 - Never pass `--force` without explicit user consent. Treat every conflict as "ask the user".
-- Tell the user to restart Claude Desktop after any `--write` or `revert`.
+- Tell the user to restart Claude Desktop after any `--write` or `revert`, and ask them to check the MCP server list in Claude Desktop's settings to confirm the change took effect. Claude Desktop is the source of truth post-restart; do not run `cdcasasagi list` just to re-show the new state.
 - `cdcasasagi` output is ASCII-only by project policy. Don't pretty-print it back with Unicode boxes or emoji.
-- Use `cdcasasagi list` any time the user asks "what do I have configured?" — it lists only `cdcasasagi`-managed entries (`name : url`, sorted), and ignores hand-added entries.
+- Use `cdcasasagi list` only when the user explicitly asks "what do I have configured?" — it lists only `cdcasasagi`-managed entries (`name : url`, sorted), and ignores hand-added entries. Do not call it as a self-verification step after a `--write`.
 - For exact flag semantics on a particular command, run `cdcasasagi <command> --help` rather than guessing.
 
 ## Manual verification (for the skill author)
@@ -150,9 +175,11 @@ cdcasasagi revert
 To smoke-test this skill end-to-end on a real machine:
 
 1. "install cdcasasagi if it isn't already" -> agent runs `uv tool install cdcasasagi` (and `uv` install if missing), then `cdcasasagi version` and `cdcasasagi doctor`.
-2. "add the Notion remote MCP server" -> agent confirms in plain words, runs `cdcasasagi add https://mcp.notion.com/mcp --write`, then asks the user to restart Claude Desktop.
-3. "set up these 12 servers: ..." -> agent builds JSONL, runs `cdcasasagi validate-import -` (no write), confirms, then runs `cdcasasagi import - --write` with the same JSONL via heredoc.
-4. "undo that" -> agent confirms, runs `cdcasasagi revert`, asks the user to restart Claude Desktop.
+2. "add the Notion remote MCP server" -> agent confirms in plain words, runs `cdcasasagi add https://mcp.notion.com/mcp --write`, then asks the user to restart Claude Desktop. (Workflow B)
+3. "set up these servers: ..." with JSONL or a list -> agent builds JSONL, runs `cdcasasagi validate-import -` (no write), confirms, then runs `cdcasasagi import - --write` with the same JSONL via heredoc. Try this with both a 2-entry list and a 10+ entry list — both should go through Workflow C. (Workflow C)
+4. "I want to rename one of these / drop one / add two more" after a successful bulk import -> agent runs `cdcasasagi eject > backup.jsonl`, edits the JSONL with the user, `cdcasasagi validate-import - < backup.jsonl`, then `cdcasasagi import - --write < backup.jsonl`. (Workflow C, re-import path)
+5. "remove the Notion server" -> agent confirms, runs `cdcasasagi delete notion --write`, then asks the user to restart Claude Desktop. Verify it refuses with a clear message if the named entry is hand-added (`command` is not `mcp-proxy`).
+6. "undo that" -> agent confirms, runs `cdcasasagi revert`, asks the user to restart Claude Desktop. (Workflow D)
 
 The bulk path should match the shape of `e2e/specs/handoff.spec` in this repository: `validate-import -` -> `import - --write` -> `revert`.
 
