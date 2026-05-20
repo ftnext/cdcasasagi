@@ -30,7 +30,7 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Package skill
       working-directory: skills
-      run: zip -r ../cdcasasagi.zip cdcasasagi
+      run: zip -ry ../cdcasasagi.zip cdcasasagi
     - name: Upload skill to release
       env:
         GH_TOKEN: ${{ github.token }}
