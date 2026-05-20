@@ -24,6 +24,7 @@ jobs:
 
   upload-skill:
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
     steps:
