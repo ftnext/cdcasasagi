@@ -1,14 +1,18 @@
 import json
 import os
+import re
 from importlib.metadata import version as pkg_version
 
 import pytest
 import typer
 from typer.testing import CliRunner
 
+from cdcasasagi import main
 from cdcasasagi.cli import app
 
 runner = CliRunner()
+
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 @pytest.fixture()
@@ -1868,3 +1872,14 @@ class TestEject:
         result = runner.invoke(app, ["eject"])
         assert result.exit_code == 1
         assert "Failed to parse JSON config file" in result.stderr
+
+
+class TestMain:
+    def test_usage_shows_cdcasasagi_regardless_of_argv0(self, monkeypatch, capsys):
+        monkeypatch.setattr("sys.argv", ["__main__.py", "--help"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        # rich styles "Usage:" and the program name separately when color is on.
+        plain = ANSI_ESCAPE.sub("", capsys.readouterr().out)
+        assert "Usage: cdcasasagi" in plain

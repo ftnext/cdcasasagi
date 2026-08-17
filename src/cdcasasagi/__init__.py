@@ -2,4 +2,4 @@ from .cli import app
 
 
 def main() -> None:
-    app()
+    app(prog_name="cdcasasagi")
