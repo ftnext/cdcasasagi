@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from importlib.metadata import version as pkg_version
 
 import pytest
@@ -10,6 +11,8 @@ from cdcasasagi import main
 from cdcasasagi.cli import app
 
 runner = CliRunner()
+
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 @pytest.fixture()
@@ -1877,4 +1880,6 @@ class TestMain:
         with pytest.raises(SystemExit) as exc_info:
             main()
         assert exc_info.value.code == 0
-        assert "Usage: cdcasasagi" in capsys.readouterr().out
+        # rich styles "Usage:" and the program name separately when color is on.
+        plain = ANSI_ESCAPE.sub("", capsys.readouterr().out)
+        assert "Usage: cdcasasagi" in plain
