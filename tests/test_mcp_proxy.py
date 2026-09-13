@@ -10,7 +10,11 @@ def test_resolve_path_found(tmp_path):
     fake_bin.touch()
     fake_executable = tmp_path / "python"
 
-    with patch("cdcasasagi.mcp_proxy.sys") as mock_sys:
+    with (
+        patch("cdcasasagi.mcp_proxy.sys") as mock_sys,
+        patch("cdcasasagi.mcp_proxy.os") as mock_os,
+    ):
+        mock_os.name = "posix"
         mock_sys.executable = str(fake_executable)
         result = resolve_path()
 
