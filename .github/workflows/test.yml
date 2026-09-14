@@ -57,7 +57,12 @@ jobs:
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y musl-tools
     - name: Build binary
-      run: uv tool run --from hatch==1.18.0 hatch build --target binary
+      shell: bash
+      run: |
+        uv build --wheel
+        PYAPP_PROJECT_PATH="$(uv run --no-project python -c 'from pathlib import Path; print(next(Path("dist").glob("*.whl")).resolve())')"
+        export PYAPP_PROJECT_PATH
+        uv tool run --from hatch==1.18.0 hatch build --target binary
     - name: Smoke test binary
       shell: bash
       run: dist/binary/* --help

@@ -24,6 +24,7 @@ jobs:
 
   upload-binaries:
     name: Release binary (${{ matrix.target }})
+    needs: pypi-publish
     runs-on: ${{ matrix.os }}
     environment: release
     permissions:
