@@ -34,7 +34,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+        - os: ubuntu-24.04
+          target: x86_64-unknown-linux-musl
+        - os: macos-15
+          target: aarch64-apple-darwin
+        - os: windows-2025
+          target: x86_64-pc-windows-msvc
+    env:
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Install uv
@@ -43,5 +51,18 @@ jobs:
         python-version: "3.12"
     - name: Set up Rust
       uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      with:
+        target: ${{ matrix.target }}
+    - name: Install musl toolchain
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y musl-tools
     - name: Build binary
-      run: uv tool run --from hatch==1.18.0 hatch build --target binary
+      shell: bash
+      run: |
+        uv build --wheel
+        PYAPP_PROJECT_PATH="$(uv run --no-project python -c 'from pathlib import Path; print(next(Path("dist").glob("*.whl")).resolve())')"
+        export PYAPP_PROJECT_PATH
+        uv tool run --from hatch==1.18.0 hatch build --target binary
+    - name: Smoke test binary
+      shell: bash
+      run: dist/binary/* --help
