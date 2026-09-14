@@ -247,7 +247,7 @@ class TestBuildEntry:
             Path("/usr/bin/mcp-proxy"), "streamablehttp", "https://mcp.notion.com/mcp"
         )
         assert entry == {
-            "command": "/usr/bin/mcp-proxy",
+            "command": str(Path("/usr/bin/mcp-proxy")),
             "args": ["--transport", "streamablehttp", "https://mcp.notion.com/mcp"],
         }
 
@@ -724,7 +724,7 @@ class TestListMcpProxyEntries:
         config = {
             "mcpServers": {
                 "notion": {
-                    "command": "/usr/bin/mcp-proxy",
+                    "command": str(Path("/usr/bin/mcp-proxy")),
                     "args": ["--transport", "streamablehttp", "https://n.example/mcp"],
                 },
                 "other": {
@@ -739,15 +739,15 @@ class TestListMcpProxyEntries:
         config = {
             "mcpServers": {
                 "broken": {
-                    "command": "/usr/bin/mcp-proxy",
+                    "command": str(Path("/usr/bin/mcp-proxy")),
                     "args": [],
                 },
                 "wrong-flag": {
-                    "command": "/usr/bin/mcp-proxy",
+                    "command": str(Path("/usr/bin/mcp-proxy")),
                     "args": ["--other", "x", "https://example.com/mcp"],
                 },
                 "ok": {
-                    "command": "/usr/bin/mcp-proxy",
+                    "command": str(Path("/usr/bin/mcp-proxy")),
                     "args": [
                         "--transport",
                         "streamablehttp",
@@ -762,15 +762,15 @@ class TestListMcpProxyEntries:
         config = {
             "mcpServers": {
                 "zoo": {
-                    "command": "/usr/bin/mcp-proxy",
+                    "command": str(Path("/usr/bin/mcp-proxy")),
                     "args": ["--transport", "streamablehttp", "https://z.example/mcp"],
                 },
                 "alpha": {
-                    "command": "/usr/bin/mcp-proxy",
+                    "command": str(Path("/usr/bin/mcp-proxy")),
                     "args": ["--transport", "streamablehttp", "https://a.example/mcp"],
                 },
                 "middle": {
-                    "command": "/usr/bin/mcp-proxy",
+                    "command": str(Path("/usr/bin/mcp-proxy")),
                     "args": ["--transport", "streamablehttp", "https://m.example/mcp"],
                 },
             }

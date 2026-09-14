@@ -12,6 +12,8 @@ from cdcasasagi.cli import app
 
 runner = CliRunner()
 
+PROXY_NAME = "mcp-proxy.exe" if os.name == "nt" else "mcp-proxy"
+
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -20,7 +22,7 @@ def config_env(tmp_path, monkeypatch):
     config_file = tmp_path / "claude_desktop_config.json"
     monkeypatch.setenv("CLAUDE_DESKTOP_CONFIG", str(config_file))
 
-    fake_proxy = tmp_path / "bin" / "mcp-proxy"
+    fake_proxy = tmp_path / "bin" / PROXY_NAME
     fake_proxy.parent.mkdir()
     fake_proxy.touch()
     fake_python = tmp_path / "bin" / "python"
@@ -120,7 +122,7 @@ class TestDoctor:
             claude_dir.mkdir(parents=True)
             msix_cfg = claude_dir / "claude_desktop_config.json"
 
-        fake_proxy = tmp_path / "bin" / "mcp-proxy"
+        fake_proxy = tmp_path / "bin" / PROXY_NAME
         fake_proxy.parent.mkdir()
         fake_proxy.touch()
         fake_python = tmp_path / "bin" / "python"
@@ -291,7 +293,7 @@ class TestDoctor:
         appdata_python_dir.mkdir(parents=True)
         fake_python = appdata_python_dir / "python.exe"
         fake_python.touch()
-        (appdata_python_dir / "mcp-proxy").touch()
+        (appdata_python_dir / PROXY_NAME).touch()
         monkeypatch.setattr("cdcasasagi.mcp_proxy.sys.executable", str(fake_python))
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
@@ -344,7 +346,7 @@ class TestAmbiguousMsixConfig:
             cfg = d / "claude_desktop_config.json"
             cfg.write_text('{"mcpServers": {}}')
             cfgs.append(cfg)
-        fake_proxy = tmp_path / "bin" / "mcp-proxy"
+        fake_proxy = tmp_path / "bin" / PROXY_NAME
         fake_proxy.parent.mkdir()
         fake_proxy.touch()
         fake_python = tmp_path / "bin" / "python"

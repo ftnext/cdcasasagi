@@ -32,7 +32,7 @@ def test_format_diff_existing():
 def test_preview_message_derived_name():
     msg = preview_message("notion", True, Path("/tmp/config.json"), "diff here")
     assert 'Derived name from URL: "notion"' in msg
-    assert "Target: /tmp/config.json" in msg
+    assert f"Target: {Path('/tmp/config.json')}" in msg
     assert "--write" in msg
     assert "--name" in msg
 
@@ -72,7 +72,7 @@ def test_format_diff_custom_labels_none():
 
 def test_revert_message():
     msg = revert_message(Path("/tmp/config.json"), "diff here")
-    assert "Reverted: /tmp/config.json" in msg
+    assert f"Reverted: {Path('/tmp/config.json')}" in msg
     assert "Removed:" in msg
     assert "config.json.bak" in msg
     assert "diff here" in msg
@@ -96,7 +96,7 @@ class TestImportPreviewMessage:
         msg = import_preview_message(
             Path("/tmp/config.json"), "servers.json", 2, plan, force=False
         )
-        assert "Target: /tmp/config.json" in msg
+        assert f"Target: {Path('/tmp/config.json')}" in msg
         assert "Source: servers.json (2 entries)" in msg
         assert "Plan:" in msg
         assert "  + notion" in msg
@@ -223,7 +223,7 @@ class TestImportWriteMessage:
             force=False,
             file_existed=False,
         )
-        assert "Target: /tmp/config.json" in msg
+        assert f"Target: {Path('/tmp/config.json')}" in msg
         assert "Source: servers.json" in msg
         assert "Applied:" in msg
         assert "  + notion" in msg
@@ -396,7 +396,7 @@ class TestListMessage:
     def test_empty(self):
         msg = list_message(Path("/tmp/config.json"), [])
         assert "No mcp-proxy MCP servers configured." in msg
-        assert "Target: /tmp/config.json" in msg
+        assert f"Target: {Path('/tmp/config.json')}" in msg
 
     def test_formats_entries(self):
         servers = [
@@ -404,7 +404,7 @@ class TestListMessage:
             ("openai-developer-docs", "https://developers.openai.com/mcp"),
         ]
         msg = list_message(Path("/tmp/config.json"), servers)
-        assert "Target: /tmp/config.json" in msg
+        assert f"Target: {Path('/tmp/config.json')}" in msg
         assert "notion" in msg
         assert "https://mcp.notion.com/mcp" in msg
         assert "openai-developer-docs" in msg
